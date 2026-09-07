@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "crux-clarify"
+version = "0.1.0"
+description = "An embeddable clarification agent: turns an underspecified prompt into a compiled prompt whose every guess is visible"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Vedanshu Joshi" }]
+keywords = ["llm", "agents", "prompt", "clarification", "elicitation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+]
+
+dependencies = [
+    "litellm>=1.44",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "typer>=0.12",
+    "rich>=13.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-timeout>=2.3",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "pyyaml>=6.0",
+    "types-PyYAML>=6.0",
+]
+
+[project.scripts]
+crux = "crux.cli.main:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/crux"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+# Fixture repos are stand-in projects for the retriever to read, not source.
+extend-exclude = ["examples", "tests/evals/fixtures"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.isort]
+known-first-party = ["crux", "tests"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+files = ["src", "tests"]
+exclude = ["^examples/", "^tests/evals/fixtures/"]
+mypy_path = "src"
+explicit_package_bases = true
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["litellm", "litellm.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+# A retriever or an LLM adapter that hangs would otherwise stall a run for ever
+# rather than failing it.
+addopts = "-q --strict-markers --timeout=60"
+markers = [
+    "live: hits a real model; excluded from CI, run explicitly",
+]
