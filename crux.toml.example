@@ -1,0 +1,43 @@
+# crux.toml — read by the CLI only, and it BEATS the environment.
+#
+# That is the reverse of the usual convention, and it is deliberate: a repo that
+# checks this in wants every contributor on the same models regardless of their
+# shell. Credentials are the exception. They cannot be set here at all, so a
+# committed file can never override an operator's key.
+#
+# Precedence: command-line flag > crux.toml > environment > default.
+# Run `crux config` to see what actually resolved and from where.
+
+[tiers]
+# Open-ended judgement. Naming what is undecided, and deciding what retrieved
+# code actually settles. Where a weak model visibly fails.
+reasoning  = "anthropic/claude-sonnet-5"
+
+# Bounded transformations over material already supplied: wording a question,
+# labelling a reply, answering from evidence, writing the task sentence.
+# Defaults to the reasoning model when unset.
+mechanical = "groq/openai/gpt-oss-20b"
+
+[operations]
+# The escape hatch. Any of: expand, adjudicate, phrase, classify,
+# answer_counter, draft. Rarely needed; the tiers are the intended interface.
+# adjudicate = "anthropic/claude-opus-5"
+
+[fallback]
+# Tried in order when a model is rate limited, down, or refuses the request.
+# Never tried when the request itself is malformed: that fails everywhere and
+# falling back would only burn the chain and hide the bug.
+models   = ["gemini/gemini-3.6-flash", "cohere_chat/command-a-03-2025"]
+retries  = 1      # non-primary models get less patience than the primary
+deadline = 180.0  # seconds for the whole chain, checked before each attempt
+
+[models."groq/openai/gpt-oss-20b"]
+# Per-model call options. Groq's free tier counts the tokens you RESERVE, not
+# what you use, so a small ceiling raises the number of calls that fit a minute.
+max_tokens       = 3500
+reasoning_effort = "low"
+
+[limits]
+max_passes              = 3
+max_rounds              = 3
+max_questions_per_round = 3
