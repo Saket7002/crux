@@ -1,0 +1,15 @@
+{
+  "name": "next-dashboard-fixture",
+  "private": true,
+  "_comment": "Synthetic fixture. crux's filesystem retriever reads this to answer 'what does this project already depend on'. Versions are deliberately not real releases so GitHub's dependency graph has nothing to match: real numbers here produced 30-odd permanent false-positive alerts and trained everyone to ignore Dependabot.",
+  "dependencies": {
+    "next": "0.0.0-fixture",
+    "react": "0.0.0-fixture",
+    "@tanstack/react-query": "0.0.0-fixture",
+    "zod": "0.0.0-fixture"
+  },
+  "devDependencies": {
+    "vitest": "0.0.0-fixture",
+    "typescript": "0.0.0-fixture"
+  }
+}

@@ -1,0 +1,14 @@
+id: notifications-04
+stratum: feature
+prompt: >
+  Add notifications to the app. Users should find out when something they care
+  about happens, and they should be able to turn them off.
+fixture_repo: fastapi_service
+max_questions: 4
+must_surface:
+  - id: software.scope.build
+  - match: "which delivery channel notifications use"
+  - match: "which events trigger a notification"
+  - match: "how a user opts out"
+must_not_surface:
+  - id: software.tests.expectations

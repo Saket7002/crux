@@ -1,0 +1,20 @@
+id: dashboard-07
+stratum: project
+prompt: >
+  Build an admin dashboard for the platform. Admins need to see who is signed
+  up, what they are using, and whether anything is broken. They should be able
+  to act on what they see: suspend an account, resend an invite, retry a failed
+  job. It should be obvious at a glance when something needs attention, and it
+  has to work for a support person who is not technical. We already have a
+  Next.js frontend and a small API; reuse them rather than starting fresh.
+fixture_repo: next_dashboard
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - match: "which metrics count as something needing attention"
+  - match: "who is allowed to perform destructive actions"
+  - match: "how the dashboard reads data from the API"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.deps.policy

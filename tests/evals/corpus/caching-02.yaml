@@ -1,0 +1,11 @@
+id: caching-02
+stratum: one_liner
+prompt: "add caching"
+fixture_repo: fastapi_service
+max_questions: 3
+must_surface:
+  - id: software.scope.build
+  - match: "what gets cached"
+  - match: "how long entries live before expiring"
+must_not_surface:
+  - id: software.tests.expectations

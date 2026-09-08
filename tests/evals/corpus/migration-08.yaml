@@ -1,0 +1,18 @@
+id: migration-08
+stratum: project
+prompt: >
+  Move us off the single Postgres instance. Reads are slow at peak and one bad
+  query takes everything down. We want isolation between tenants, and we cannot
+  take downtime. There are about forty tables, several with foreign keys across
+  what would become boundaries. The API is the only writer today, but the job
+  worker reads directly.
+fixture_repo: go_worker
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - id: software.compat.breaking
+  - match: "how tenants are separated"
+  - match: "how the cutover happens without downtime"
+  - match: "what happens to foreign keys that cross the new boundary"
+must_not_surface:
+  - id: software.tests.expectations

@@ -1,0 +1,15 @@
+id: observability-09
+stratum: project
+prompt: >
+  We are flying blind in production. Add observability across the API and the
+  worker so we can tell what broke, where, and who it affected. Budget matters;
+  we are not paying enterprise rates for log volume.
+fixture_repo: go_worker
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - match: "which signals are collected"
+  - match: "where telemetry is sent"
+  - match: "how much data retention costs"
+must_resolve_by_retrieval:
+  - id: software.deps.policy

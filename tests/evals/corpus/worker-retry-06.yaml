@@ -1,0 +1,14 @@
+id: worker-retry-06
+stratum: feature
+prompt: >
+  The job worker drops work when Redis blips. Make it resilient without
+  changing how jobs are enqueued.
+fixture_repo: go_worker
+max_questions: 4
+must_surface:
+  - id: software.scope.build
+  - match: "what happens to a job that exhausts its retries"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.target.files
