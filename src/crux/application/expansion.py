@@ -97,6 +97,7 @@ def absorb(
     specs = kspec.specs_for(pack_ids)
     sibling_text = {spec_id: spec.undecided for spec_id, spec in specs.items()}
     existing = {node.id: node.undecided for node in graph.nodes.values()}
+    aliases = {node_id: specs[node_id].aliases for node_id in existing if node_id in specs}
 
     total = len(result.proposed)
 
@@ -108,7 +109,9 @@ def absorb(
     survivors: list[tuple[int, preason.ProposedDecision, str]] = []
     refs: dict[str, str] = {}
     for position, proposal in enumerate(result.proposed):
-        if _duplicate_of(proposal.undecided, existing) is not None:
+        duplicate = _duplicate_of(proposal.undecided, existing, aliases)
+        if duplicate is not None:
+            _LOG.info("Dropping proposal %r: duplicates %r", proposal.undecided, duplicate)
             continue
         decision_id = cids.freeform_id(proposal.undecided, pass_index=pass_index)
         survivors.append((position, proposal, decision_id))
@@ -149,16 +152,37 @@ def absorb(
     return graph, record
 
 
-def _duplicate_of(undecided: str, existing: dict[str, str]) -> str | None:
+def _duplicate_of(
+    undecided: str,
+    existing: dict[str, str],
+    aliases: dict[str, tuple[str, ...]] | None = None,
+) -> str | None:
     """
     Find an existing decision that says the same thing.
 
+    Token overlap is the general rule. Pack decisions get two more, because a
+    later pass restating the pack's own decisions as two-word titles was the
+    commonest duplicate in the first recorded corpus run, and "Build scope"
+    against the pack's forty-word text scores 0.17 on overlap: a proposal whose
+    every token sits in the pack decision's title is that decision, and so is
+    one matching an authored alias.
+
     :param undecided: The proposal's text.
     :param existing: Known decision ids mapped to their text.
+    :param aliases: Pack decision ids mapped to their authored aliases.
     :return: The id of the duplicate, or ``None``.
     """
+    proposed = cids.tokens(undecided)
+    pack_aliases = aliases or {}
     for decision_id, text in existing.items():
         if cids.is_duplicate(undecided, text):
+            return decision_id
+        if decision_id not in pack_aliases:
+            continue
+        title = cids.tokens(text.split(":", 1)[0])
+        if len(proposed) >= 2 and proposed <= title:
+            return decision_id
+        if any(cids.is_duplicate(undecided, alias) for alias in pack_aliases[decision_id]):
             return decision_id
     return None
 

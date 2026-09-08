@@ -44,6 +44,11 @@ class DecisionSpec(pydantic.BaseModel):
     triggers: tuple[str, ...] = ()
     always: bool = False
     credential_shaped: bool = False
+    aliases: tuple[str, ...] = ()
+    """Short ways a model restates this decision, so a later pass proposing
+    "test coverage" is recognised as the pack's test-expectations decision.
+    Authored, like everything else here: token overlap cannot see that
+    "codebase location" and "which part of the codebase" are one decision."""
 
     def matches(self, prompt: str) -> bool:
         """

@@ -771,6 +771,66 @@ class TestSiblingDependencies:
         assert digest.is_resolved
 
 
+class TestPackDecisionsAreNotReinvented:
+    """
+    A later pass restating the pack's own decisions adds nothing.
+    """
+
+    async def test_a_two_word_restatement_of_a_pack_decision_is_a_duplicate(self) -> None:
+        """
+        Test that "Build scope" and friends merge into the pack decisions they
+        restate, and a genuinely new decision beside them survives.
+
+        Seen live on every project-sized prompt: pass three proposed "Build
+        scope", "Codebase location", "Test coverage" and "Third-party
+        dependency policy", each became a fresh node, and the build-scope copy
+        reached the question queue next to the real one. Overlap with the pack's
+        long wording is far below the duplicate threshold, so the title and the
+        authored aliases have to carry it.
+        """
+        reasoner = fakes.FakeReasoner(
+            expansions=[
+                preason.ExpansionResult(
+                    proposed=(
+                        fakes.proposal("Build scope"),
+                        fakes.proposal("Codebase location"),
+                        fakes.proposal("Test coverage"),
+                        fakes.proposal("Third-party dependency policy"),
+                        fakes.proposal("how long in-flight jobs get to finish"),
+                    )
+                )
+            ]
+        )
+        crux = aengine.Crux(reasoner=reasoner, budget=HEADLESS)
+
+        done = await crux.start("make the worker shut down gracefully")
+
+        assert isinstance(done, csessn.Done)
+        freeform = [n.id for n in done.session.graph.nodes.values() if n.id.startswith("open.")]
+        assert len(freeform) == 1
+        assert _find(done.session, "in-flight").id == freeform[0]
+
+    async def test_sharing_a_word_with_a_pack_decision_is_not_a_duplicate(self) -> None:
+        """
+        Test the false-merge direction, which is the expensive one: "rate
+        limiting" appears inside the build-scope wording, and a proposal about
+        it must not vanish into that decision.
+        """
+        reasoner = fakes.FakeReasoner(
+            expansions=[
+                preason.ExpansionResult(
+                    proposed=(fakes.proposal("rate limiting threshold per caller"),)
+                )
+            ]
+        )
+        crux = aengine.Crux(reasoner=reasoner, budget=HEADLESS)
+
+        done = await crux.start("add rate limiting")
+
+        assert isinstance(done, csessn.Done)
+        assert _find(done.session, "threshold per caller").id.startswith("open.p1.")
+
+
 class TestEdgesNeedAnswers:
     """
     What has to be true before an edge can fire at all.
