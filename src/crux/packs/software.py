@@ -27,6 +27,7 @@ BUILD_SCOPE = kspec.DecisionSpec(
     reversibility="hard",
     options=("mvp", "production"),
     always=True,
+    aliases=("build scope", "scope of the build", "mvp or production"),
 )
 
 TARGET_FILES = kspec.DecisionSpec(
@@ -40,6 +41,7 @@ TARGET_FILES = kspec.DecisionSpec(
     retrieval_hint="entry points, route definitions, module layout",
     accept_if="one directory or module clearly owns this concern",
     always=True,
+    aliases=("codebase location", "where the code goes", "target files", "which files to change"),
 )
 
 BREAKING_CHANGES = kspec.DecisionSpec(
@@ -55,6 +57,7 @@ BREAKING_CHANGES = kspec.DecisionSpec(
         r"\b(api|endpoint|schema|interface|migrat|refactor|rename|signature|"
         r"contract|version)\b",
     ),
+    aliases=("breaking changes", "backward compatibility", "compatibility with existing callers"),
 )
 
 TEST_EXPECTATIONS = kspec.DecisionSpec(
@@ -67,6 +70,7 @@ TEST_EXPECTATIONS = kspec.DecisionSpec(
     retrieval_hint="test directory, test framework, existing test conventions",
     accept_if="the repo's test framework and layout are identifiable",
     always=True,
+    aliases=("test coverage", "testing strategy", "tests to write"),
 )
 
 DEPENDENCY_POLICY = kspec.DecisionSpec(
@@ -82,6 +86,7 @@ DEPENDENCY_POLICY = kspec.DecisionSpec(
     retrieval_hint="dependency manifest, lockfile, existing libraries in use",
     accept_if="the project's existing dependencies are identifiable",
     always=True,
+    aliases=("dependency policy", "third-party dependency policy", "new dependencies"),
 )
 
 PACK = kspec.DecisionPack(
