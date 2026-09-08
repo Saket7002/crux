@@ -1,0 +1,28 @@
+id: server-components-25
+stratum: project
+prompt: >
+  Migrate the dashboard to React server components. First paint is slow and
+  the client bundle keeps growing. We cannot pause feature work, so this has
+  to land page by page, and nothing users see may change while it does.
+fixture_repo: next_dashboard
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - match: "which pages migrate first"
+  - match: "how session state reaches server components"
+must_not_surface:
+  - id: software.tests.expectations
+  - id: software.compat.breaking
+must_resolve_by_retrieval:
+  - id: software.deps.policy
+expected:
+  task_should:
+    - "move the Next.js dashboard to server components page by page"
+  constraints_should:
+    - "no user-visible change during the migration"
+    - "feature work continues in parallel"
+  assumptions_should_cite:
+    - "the order pages migrate in"
+    - "how the cookie session is read on the server"
+  must_not_claim:
+    - "that react-query data fetching can be kept unchanged in server components"

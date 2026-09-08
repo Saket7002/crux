@@ -11,3 +11,13 @@ must_surface:
   - match: "where refresh tokens are stored"
 must_resolve_by_retrieval:
   - id: software.deps.policy
+expected:
+  task_should:
+    - "add refresh tokens alongside the existing cookie-based sessions"
+  constraints_should:
+    - "shipped mobile clients keep working without an update"
+  assumptions_should_cite:
+    - "how long a refresh token stays valid"
+    - "where refresh tokens are stored"
+  must_not_claim:
+    - "that tokens are currently kept in local storage"

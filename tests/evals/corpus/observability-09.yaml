@@ -13,3 +13,13 @@ must_surface:
   - match: "how much data retention costs"
 must_resolve_by_retrieval:
   - id: software.deps.policy
+expected:
+  task_should:
+    - "add observability across both the API and the Go worker"
+  constraints_should:
+    - "log volume cost stays bounded"
+  assumptions_should_cite:
+    - "which signals are collected"
+    - "where telemetry is sent"
+  must_not_claim:
+    - "that the worker already emits structured logs to a backend"

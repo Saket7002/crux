@@ -44,6 +44,41 @@ class TestCorpus:
         strata = {case.stratum for case in harness.load_corpus()}
         assert strata == {"one_liner", "feature", "project"}
 
+    def test_the_strata_are_balanced_and_ids_unique(self) -> None:
+        """
+        Test that the ask-rate bands compare like with like. A stratum with two
+        cases and one with twenty would make the per-stratum mean a coin toss,
+        and a duplicated id would let one case silently overwrite another in a
+        platform dataset keyed on it.
+        """
+        cases = harness.load_corpus()
+        ids = [case.id for case in cases]
+        assert len(ids) == len(set(ids))
+        per_stratum = {
+            s: sum(1 for c in cases if c.stratum == s) for s in {c.stratum for c in cases}
+        }
+        assert len(set(per_stratum.values())) == 1, per_stratum
+
+    def test_every_case_carries_a_rubric_with_no_blank_bullet(self) -> None:
+        """
+        Test that the judge has something to judge on every case. A case without
+        a rubric skips the judge score, which reads as a perfect result in a
+        platform dashboard rather than as a gap in the corpus.
+        """
+        for case in harness.load_corpus():
+            assert case.expected is not None, case.id
+            bullets = case.expected.bullets()
+            assert bullets, case.id
+            assert all(bullet.strip() for _, bullet in bullets), case.id
+
+    def test_some_cases_run_without_a_fixture(self) -> None:
+        """
+        Test that headless-without-retrieval is measured. Every host does not
+        hand crux a repo, and a corpus where every case has one never exercises
+        the path where retrieval cannot resolve anything.
+        """
+        assert any(case.fixture_repo is None for case in harness.load_corpus())
+
 
 class TestMatching:
     """

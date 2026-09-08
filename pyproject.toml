@@ -37,6 +37,12 @@ dev = [
     "pyyaml>=6.0",
     "types-PyYAML>=6.0",
 ]
+# Eval platform SDKs. Kept out of `dev` so the CI gate never needs them, and
+# imported lazily so a missing SDK fails only the backend that needs it.
+evals = [
+    "braintrust>=0.37",
+    "opik>=2.2",
+]
 
 [project.scripts]
 crux = "crux.cli.main:app"
@@ -70,7 +76,7 @@ plugins = ["pydantic.mypy"]
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = ["litellm", "litellm.*"]
+module = ["litellm", "litellm.*", "braintrust", "braintrust.*", "opik", "opik.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

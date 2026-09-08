@@ -1,0 +1,27 @@
+id: queue-move-26
+stratum: project
+prompt: >
+  Move the worker off Redis lists onto a proper queue. We lose jobs on restart,
+  there is no visibility into what is queued, and one slow customer starves the
+  others. Other teams enqueue from three different languages.
+fixture_repo: go_worker
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - id: software.deps.policy
+  - match: "which queue system replaces Redis lists"
+  - match: "how in-flight jobs are handled during the switch"
+  - match: "whether at-least-once delivery is acceptable"
+must_not_surface:
+  - id: software.tests.expectations
+expected:
+  task_should:
+    - "replace the Redis-list queue in the Go worker with a durable queue"
+  constraints_should:
+    - "producers in three languages can still enqueue"
+    - "one customer cannot starve the others"
+  assumptions_should_cite:
+    - "the chosen queue system"
+    - "whether duplicate delivery is tolerated"
+  must_not_claim:
+    - "that the worker already acknowledges jobs after completion"

@@ -1,0 +1,20 @@
+id: json-logs-14
+stratum: one_liner
+prompt: "switch the worker's logging to JSON"
+fixture_repo: go_worker
+max_questions: 3
+must_surface:
+  - match: "whether existing log consumers parse the current format"
+must_not_surface:
+  - id: software.tests.expectations
+  - id: software.deps.policy
+must_resolve_by_retrieval:
+  - id: software.deps.policy
+  - id: software.target.files
+expected:
+  task_should:
+    - "configure the worker's existing zap logger to emit JSON"
+  assumptions_should_cite:
+    - "whether anything downstream parses the current log format"
+  must_not_claim:
+    - "that a new logging library is needed"

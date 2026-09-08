@@ -238,13 +238,38 @@ uv run pytest tests/evals -m live                  # decision recall, from a cas
 CRUX_RECORD=1 uv run pytest tests/evals -m live    # re-record against a real model
 
 uv run python -m tests.evals.saturation --record   # the experiment
+
+uv run python -m tests.evals.platform --backend stdout            # scores per case, offline
+uv run python -m tests.evals.platform --backend braintrust        # upload a run
+uv run python -m tests.evals.platform --backend opik --record     # re-record, then upload
 ```
 
 **Recall evals** score whether crux surfaced the decisions a person said mattered
 and stayed quiet about the ones the repo already answers. Matching is canonical id
 or token overlap, with no LLM judge, because a judge makes the harness itself
 flaky. Assertions are on the aggregate, never per case, and ask rate per prompt
-size has an alarm band.
+size has an alarm band. The corpus is thirty cases, ten per prompt size, over four
+synthetic fixture repos and a handful of cases with no repo at all.
+
+**Eval platforms** add what the harness deliberately lacks: run history, a diff
+between two experiments, and a trace per model call. `tests.evals.platform`
+uploads one run to Braintrust or Comet Opik behind a single adapter, and needs
+`uv sync --extra evals`. The loop and the scorer are the harness's own; a backend
+only receives finished results. Each case carries six 0..1 scores:
+
+| Score | Question it answers |
+|---|---|
+| `recall` | Of the decisions the case says matter, how many surfaced |
+| `quiet` | Of the decisions the repo already answers, how many were not asked |
+| `retrieval` | Of the decisions retrieval should close, how many it did |
+| `within_budget` | Did the case stay under its question budget |
+| `clean` | Did every expectation hold at once |
+| `judge` | Of the rubric bullets in the case's `expected` block, how many the compiled prompt meets |
+
+The judge is the one LLM-scored number, and it never gates a test. It runs
+through crux's own client, so it records to `cassettes/judge.json` and replays
+for free; a rubric edit or a prompt change is what makes it need a re-record.
+Pass `--judge-model` to stop a model grading its own work.
 
 **The saturation experiment** answers whether the graph earns its keep, with the
 decision rule committed in advance:

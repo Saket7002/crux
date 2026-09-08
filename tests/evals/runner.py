@@ -87,6 +87,27 @@ class FirstOptionRespondent:
         return tuple(replies)
 
 
+def build_engine(
+    case: harness.EvalCase,
+    client: pllm.LlmClient,
+    *,
+    budget: csessn.Budget | None = None,
+) -> aengine.Crux:
+    """
+    Wire crux up for one case, the same way every eval path does.
+
+    :param case: The case to run.
+    :param client: Where completions come from.
+    :param budget: Caps to run under.
+    :return: The engine.
+    """
+    return aengine.Crux(
+        reasoner=xreason.LlmReasoner(client),
+        retriever=xfsretr.FilesystemRetriever(case.root) if case.root else None,
+        budget=budget or csessn.Budget(max_questions_total=case.max_questions),
+    )
+
+
 async def run_case(
     case: harness.EvalCase,
     client: pllm.LlmClient,
@@ -107,11 +128,7 @@ async def run_case(
         resolve to a value and so no edge can ever fire.
     :return: The finished session.
     """
-    crux = aengine.Crux(
-        reasoner=xreason.LlmReasoner(client),
-        retriever=xfsretr.FilesystemRetriever(case.root) if case.root else None,
-        budget=budget or csessn.Budget(max_questions_total=case.max_questions),
-    )
+    crux = build_engine(case, client, budget=budget)
     step = await crux.start(
         case.prompt,
         context=csessn.SessionContext(root=case.root) if case.root else None,
@@ -119,7 +136,30 @@ async def run_case(
     )
     if not answer:
         return step.session
+    return await finish_case(case, client, step, budget=budget)
 
+
+async def finish_case(
+    case: harness.EvalCase,
+    client: pllm.LlmClient,
+    step: csessn.Step,
+    *,
+    budget: csessn.Budget | None = None,
+) -> csessn.Session:
+    """
+    Answer every remaining question with the scripted respondent.
+
+    Exists so a session scored the recall way (questions left unanswered) can
+    still be carried to a compiled prompt for the judge, without the scoring
+    session itself changing.
+
+    :param case: The case being run.
+    :param client: Where completions come from.
+    :param step: Where the session got to.
+    :param budget: Caps to run under.
+    :return: The finished session, with an outcome.
+    """
+    crux = build_engine(case, client, budget=budget)
     respondent = FirstOptionRespondent()
     while isinstance(step, csessn.NeedsInput):
         step = await crux.resume(step.session, respondent.answer(step.questions))

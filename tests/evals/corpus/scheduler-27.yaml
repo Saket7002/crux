@@ -1,0 +1,27 @@
+id: scheduler-27
+stratum: project
+prompt: >
+  Replace Airflow. It is the only thing we run on that box, upgrades are
+  painful, and we have exactly one DAG. We still need retries, a schedule, and
+  a record of what ran when.
+fixture_repo: data_pipeline
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - id: software.deps.policy
+  - match: "which scheduler replaces Airflow"
+  - match: "how run history is preserved"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "replace Airflow for the single events_daily DAG while keeping retries, schedule and run history"
+  constraints_should:
+    - "retries and a daily schedule are retained"
+  assumptions_should_cite:
+    - "what replaces Airflow"
+    - "whether past run history is migrated or restarted"
+  must_not_claim:
+    - "that multiple DAGs must be migrated"

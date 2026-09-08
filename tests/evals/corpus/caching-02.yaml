@@ -9,3 +9,14 @@ must_surface:
   - match: "how long entries live before expiring"
 must_not_surface:
   - id: software.tests.expectations
+expected:
+  task_should:
+    - "describe adding a cache to the existing API responses"
+  constraints_should:
+    - "cached responses must expire rather than live forever"
+  assumptions_should_cite:
+    - "what gets cached"
+    - "how long entries live before expiring"
+    - "Redis as the cache store, because the repo already depends on it"
+  must_not_claim:
+    - "that response caching already exists"

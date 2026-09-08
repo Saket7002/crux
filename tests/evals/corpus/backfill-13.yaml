@@ -1,0 +1,23 @@
+id: backfill-13
+stratum: one_liner
+prompt: "backfill last month's events"
+fixture_repo: data_pipeline
+max_questions: 3
+must_surface:
+  - match: "whether existing rows for those days are replaced or appended"
+  - match: "exact date range of the backfill"
+must_not_surface:
+  - id: software.tests.expectations
+  - id: software.deps.policy
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "rerun the events load for last month's dates"
+  constraints_should:
+    - "rerunning a day must not duplicate rows, because the current load appends"
+  assumptions_should_cite:
+    - "the exact date range"
+    - "whether existing rows for those days are replaced or appended"
+  must_not_claim:
+    - "that the load is already idempotent"

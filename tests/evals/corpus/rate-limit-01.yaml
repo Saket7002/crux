@@ -12,3 +12,14 @@ must_not_surface:
   - id: software.deps.policy
 must_resolve_by_retrieval:
   - id: software.target.files
+expected:
+  task_should:
+    - "describe adding rate limiting to the existing FastAPI service, not a new service"
+    - "leave which endpoints are limited as an open decision or a stated assumption"
+  constraints_should:
+    - "limits are counted per caller identity, not globally"
+  assumptions_should_cite:
+    - "how callers are identified for counting"
+    - "Redis as the counter store, because the repo already uses it"
+  must_not_claim:
+    - "that a rate-limit middleware already exists in the repo"

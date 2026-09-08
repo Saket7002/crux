@@ -9,3 +9,12 @@ must_not_surface:
   - id: software.tests.expectations
 must_resolve_by_retrieval:
   - id: software.target.files
+expected:
+  task_should:
+    - "rename the /api/v2/items routes to /api/v2/products"
+  constraints_should:
+    - "existing callers of the items path are either kept working or explicitly broken"
+  assumptions_should_cite:
+    - "whether breaking existing callers is acceptable"
+  must_not_claim:
+    - "that the items endpoint has no callers"

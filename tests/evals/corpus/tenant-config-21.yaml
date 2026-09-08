@@ -1,0 +1,23 @@
+id: tenant-config-21
+stratum: feature
+prompt: >
+  Let each tenant override a few settings, like their default timezone and
+  branding colours, without redeploying.
+fixture_repo: null
+max_questions: 4
+must_surface:
+  - id: software.scope.build
+  - match: "which settings a tenant may override"
+  - match: "where per-tenant overrides are stored"
+must_not_surface:
+  - id: software.tests.expectations
+expected:
+  task_should:
+    - "add per-tenant overrides for timezone and branding without a redeploy"
+  constraints_should:
+    - "a change takes effect without redeploying"
+  assumptions_should_cite:
+    - "the set of overridable settings"
+    - "where overrides are stored"
+  must_not_claim:
+    - "any fact about the codebase, because no repository was available"

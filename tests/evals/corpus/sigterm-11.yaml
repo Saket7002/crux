@@ -1,0 +1,22 @@
+id: sigterm-11
+stratum: one_liner
+prompt: "make the worker shut down gracefully on SIGTERM"
+fixture_repo: go_worker
+max_questions: 3
+must_surface:
+  - match: "how long in-flight jobs get to finish"
+must_not_surface:
+  - id: software.tests.expectations
+  - id: software.deps.policy
+  - id: software.compat.breaking
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "stop pulling new jobs on SIGTERM and let in-flight jobs finish"
+  constraints_should:
+    - "an in-flight job is never dropped mid-run"
+  assumptions_should_cite:
+    - "how long in-flight jobs get to finish before the process exits"
+  must_not_claim:
+    - "that a new dependency is needed for signal handling"

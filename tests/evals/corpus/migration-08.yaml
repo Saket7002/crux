@@ -16,3 +16,14 @@ must_surface:
   - match: "what happens to foreign keys that cross the new boundary"
 must_not_surface:
   - id: software.tests.expectations
+expected:
+  task_should:
+    - "move off the single Postgres instance with tenant isolation and no downtime"
+  constraints_should:
+    - "no downtime during cutover"
+    - "the job worker's direct reads keep working"
+  assumptions_should_cite:
+    - "how tenants are separated"
+    - "what happens to foreign keys that cross the new boundary"
+  must_not_claim:
+    - "that the worker only reads through the API"

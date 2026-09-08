@@ -1,0 +1,28 @@
+id: audit-log-29
+stratum: project
+prompt: >
+  Add audit logging across the API and the worker. Compliance wants to know
+  who did what, when, and from where, and the record has to be tamper-evident.
+  It will be reviewed by auditors who do not have production access.
+fixture_repo: go_worker
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - match: "which actions are audited"
+  - match: "how long audit records are retained"
+  - match: "who can read the audit log"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.deps.policy
+expected:
+  task_should:
+    - "record who did what, when and from where across the API and the worker"
+  constraints_should:
+    - "records are tamper-evident"
+    - "auditors can read them without production access"
+  assumptions_should_cite:
+    - "which actions are audited"
+    - "the retention period"
+  must_not_claim:
+    - "that an append-only store already exists"

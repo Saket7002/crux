@@ -1,0 +1,28 @@
+id: split-service-24
+stratum: project
+prompt: >
+  Split the API into services. Items, auth and billing have different teams
+  now and every deploy blocks on everyone else. Billing must not lose a single
+  write during the change. Clients hit one hostname today and we would rather
+  they kept doing so.
+fixture_repo: fastapi_service
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - id: software.compat.breaking
+  - match: "where the service boundaries fall"
+  - match: "how services communicate with each other"
+  - match: "whether the split happens all at once or gradually"
+must_not_surface:
+  - id: software.tests.expectations
+expected:
+  task_should:
+    - "split the FastAPI monolith into items, auth and billing services"
+  constraints_should:
+    - "billing loses no writes during the transition"
+    - "clients keep using a single hostname"
+  assumptions_should_cite:
+    - "how the services call each other"
+    - "whether the cut-over is gradual or all at once"
+  must_not_claim:
+    - "that a gateway or reverse proxy already fronts the API"
