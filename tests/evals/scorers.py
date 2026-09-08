@@ -14,6 +14,7 @@ import tests.evals.scorers as scorers
 from __future__ import annotations
 
 import tests.evals.harness as harness
+import tests.evals.judge as judge
 
 Scores = dict[str, float]
 
@@ -64,3 +65,42 @@ def _fraction_kept(failures: int, total: int) -> float:
     if total == 0:
         return 1.0
     return 1.0 - failures / total
+
+
+def feedback(
+    score: harness.CaseScore,
+    case: harness.EvalCase,
+    judgement: judge.Judgement | None = None,
+) -> str:
+    """
+    Say in words why the case scored what it did.
+
+    The number is for the chart; this is for the person, or the reflection
+    model, deciding what to change. It costs no model call: everything here is
+    already known to the scorer and the judge, it was just never written down.
+
+    :param score: How the case went.
+    :param case: What it expected, for the budget line.
+    :param judgement: The judge's verdicts, when the case was judged.
+    :return: One finding per line, or a single line saying nothing was wrong.
+    """
+    lines: list[str] = []
+    lines.extend(f"missed: {label}" for label in score.missed)
+    lines.extend(
+        f"asked, though the repo answers it: {label}" for label in score.should_have_been_quiet
+    )
+    lines.extend(
+        f"expected from retrieval, but not resolved that way: {label}"
+        for label in score.retrieval_expected_but_not
+    )
+    if score.over_question_budget:
+        lines.append(
+            f"over question budget: asked {score.questions_asked}, allowed {case.max_questions}"
+        )
+    if judgement is not None:
+        for verdict in judgement.verdicts:
+            if verdict.met:
+                continue
+            evidence = f" ({verdict.evidence})" if verdict.evidence else ""
+            lines.append(f"rubric not met [{verdict.section}]: {verdict.bullet}{evidence}")
+    return "\n".join(lines) if lines else "every expectation met"

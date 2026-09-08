@@ -100,6 +100,50 @@ class TestScorers:
         }
 
 
+class TestFeedback:
+    """
+    Saying in words why a case scored what it did.
+    """
+
+    def test_one_line_per_finding_in_the_corpus_vocabulary(self) -> None:
+        """
+        Test that a missed decision, a noisy one, a retrieval miss, a budget
+        breach and a failed rubric bullet each become exactly one line a
+        reflection model can act on, and nothing else is said.
+        """
+        case = harness.EvalCase(id="c", prompt="p", max_questions=2)
+        score = _score(
+            missed=("~what gets cached",),
+            should_have_been_quiet=("software.deps.policy",),
+            retrieval_expected_but_not=("software.target.files",),
+            questions_asked=3,
+            over_question_budget=True,
+        )
+        judgement = judge.Judgement(
+            verdicts=(
+                judge.Verdict(section="task_should", bullet="a", met=True),
+                judge.Verdict(section="must_not_claim", bullet="b", met=False, evidence="line 4"),
+            )
+        )
+        text = scorers.feedback(score, case, judgement)
+        assert text.splitlines() == [
+            "missed: ~what gets cached",
+            "asked, though the repo answers it: software.deps.policy",
+            "expected from retrieval, but not resolved that way: software.target.files",
+            "over question budget: asked 3, allowed 2",
+            "rubric not met [must_not_claim]: b (line 4)",
+        ]
+
+    def test_a_clean_case_says_so_rather_than_nothing(self) -> None:
+        """
+        Test that silence is never the feedback: an empty string would read as
+        a missing field on a dashboard.
+        """
+        assert scorers.feedback(_score(), harness.EvalCase(id="c", prompt="p")) == (
+            "every expectation met"
+        )
+
+
 class TestJudge:
     """
     The rubric judge, through a scripted model.
@@ -318,6 +362,7 @@ class TestRunExperiment:
         result = backend.results[0]
         assert result.scores["judge"] == 1.0
         assert result.judge_rationale == "met"
+        assert result.feedback == "every expectation met"
         assert [c.operation for c in result.calls] == ["expand"]
         assert result.rendered.startswith("# Task")
 
@@ -356,6 +401,7 @@ class TestOneFailureDoesNotCostTheRun:
         )
         bad, good = backend.results
         assert bad.error == "provider declined" and bad.score is None
+        assert bad.feedback == "failed: provider declined"
         assert good.error == "" and good.score is not None
         assert backend.calls[-1] == "finish"
 

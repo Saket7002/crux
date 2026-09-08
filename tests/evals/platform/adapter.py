@@ -71,6 +71,8 @@ class CaseResult(pydantic.BaseModel):
     metrics: dict[str, int]
     rendered: str
     judge_rationale: str = ""
+    feedback: str = ""
+    """Why it scored what it did, one finding per line. See ``scorers.feedback``."""
     calls: tuple[ievid.CallRecord, ...] = ()
     elapsed_seconds: float = 0.0
     error: str = ""
@@ -294,7 +296,13 @@ async def run_experiment(
             # this the expensive way: a provider declining a single request
             # threw away eight completed cases.
             result = CaseResult(
-                case=case, score=None, scores={}, metrics={}, rendered="", error=str(exc)
+                case=case,
+                score=None,
+                scores={},
+                metrics={},
+                rendered="",
+                feedback=f"failed: {exc}",
+                error=str(exc),
             )
         result = result.model_copy(
             update={"calls": log.drain(), "elapsed_seconds": time.monotonic() - started}
@@ -323,21 +331,21 @@ async def _run_one(
     score = harness.score_case(case, session)
     scores = scorers.decompose(score, case)
     rendered = ""
-    rationale = ""
+    judgement: judge.Judgement | None = None
     compiled = await finish(case, client, session)
     if compiled is not None:
         rendered = compiled.render()
     if judge_client is not None and case.expected is not None and compiled is not None:
         judgement = await judge.judge(compiled, case.expected, judge_client, model=judge_model)
         scores["judge"] = judgement.score
-        rationale = judgement.rationale
     return CaseResult(
         case=case,
         score=score,
         scores=scores,
         metrics=scorers.metrics(score),
         rendered=rendered,
-        judge_rationale=rationale,
+        judge_rationale=judgement.rationale if judgement else "",
+        feedback=scorers.feedback(score, case, judgement),
     )
 
 
@@ -364,6 +372,8 @@ class PrintBackend:
     def log_result(self, result: CaseResult) -> None:
         status = f"FAILED: {result.error[:100]}" if result.error else "ok"
         print(f"{result.case.id} ... {status}", flush=True)
+        if result.score is not None and not result.score.clean:
+            print("\n".join(f"    {line}" for line in result.feedback.splitlines()), flush=True)
         self.results.append(result)
 
     def finish(self) -> str:

@@ -85,6 +85,7 @@ class BraintrustBackend:
             metadata={
                 "stratum": result.case.stratum,
                 "judge_rationale": result.judge_rationale,
+                "feedback": result.feedback,
                 "error": result.error,
                 "missed": list(result.score.missed) if result.score else [],
                 "should_have_been_quiet": (
