@@ -79,6 +79,14 @@ regressions. Assertions there are on the aggregate, never per case.
 If you change a prompt, say what happened to the ask rate. That number is the
 product.
 
+Every corpus case also carries an `expected` rubric: a few bullets, written by a
+person in the domain's vocabulary, saying what a good compiled prompt states,
+constrains, assumes, and must not claim. A model judges those for the eval
+platforms only; nothing in `pytest` reads them. Two rules follow. A rubric edit
+changes a score without changing crux, so say so in the commit. And the judge
+replays from `tests/evals/cassettes/judge.json`, so after editing a rubric or a
+prompt, re-record with `uv run python -m tests.evals.platform --record`.
+
 ## What is most wanted
 
 - **Another provider.** crux is meant to run on whatever model a host already

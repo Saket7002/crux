@@ -18,3 +18,15 @@ must_not_surface:
   - id: software.tests.expectations
 must_resolve_by_retrieval:
   - id: software.deps.policy
+expected:
+  task_should:
+    - "build the admin dashboard inside the existing Next.js frontend and API"
+    - "cover sign-ups, usage, health, and the three actions: suspend, resend invite, retry job"
+  constraints_should:
+    - "usable by a non-technical support person"
+    - "reuses the existing frontend and API rather than starting fresh"
+  assumptions_should_cite:
+    - "which metrics count as something needing attention"
+    - "who is allowed to perform destructive actions"
+  must_not_claim:
+    - "that the API already exposes admin endpoints for these actions"

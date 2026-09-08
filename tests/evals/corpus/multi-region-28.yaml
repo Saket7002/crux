@@ -1,0 +1,25 @@
+id: multi-region-28
+stratum: project
+prompt: >
+  Serve reads from multiple regions. European customers see 300ms round trips
+  to the US database and are churning. Writes can stay in one place for now.
+  Correctness matters more than latency for anything involving money.
+fixture_repo: null
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - match: "how much replication lag is acceptable"
+  - match: "how a request is routed to a region"
+  - match: "what happens when a region is unavailable"
+must_not_surface:
+  - id: software.tests.expectations
+expected:
+  task_should:
+    - "add read replicas in additional regions with writes staying in one"
+  constraints_should:
+    - "money-related reads go to the primary or are otherwise strongly consistent"
+  assumptions_should_cite:
+    - "the acceptable replication lag for ordinary reads"
+    - "how requests are routed to a region"
+  must_not_claim:
+    - "any fact about the codebase, because no repository was available"

@@ -1,0 +1,30 @@
+id: schema-migration-30
+stratum: project
+prompt: >
+  Split the items table's free-form metadata column into typed columns. We use
+  SQLAlchemy and Alembic already. Zero downtime, and the old column must keep
+  working for the mobile app until it is updated next quarter.
+fixture_repo: fastapi_service
+max_questions: 6
+must_surface:
+  - match: "how long both the old column and the new columns coexist"
+  - match: "how existing rows are backfilled into the new columns"
+  - match: "which typed columns the metadata splits into"
+must_not_surface:
+  - id: software.tests.expectations
+  - id: software.deps.policy
+  - id: software.compat.breaking
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "expand-and-contract the items metadata column into typed columns"
+  constraints_should:
+    - "zero downtime"
+    - "the old metadata column keeps working until next quarter"
+  assumptions_should_cite:
+    - "the set of typed columns"
+    - "how the backfill runs against live traffic"
+  must_not_claim:
+    - "that breaking the mobile app is acceptable"
+    - "that Alembic needs to be added as a dependency"

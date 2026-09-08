@@ -7,9 +7,11 @@ does not measure whether the wording was nice.
 
 Two deliberate choices worth defending:
 
-- **No LLM judge.** Matching is canonical-id equality, falling back to token
-  overlap for freeform decisions. A judge would make the harness itself flaky,
-  and a flaky harness is one nobody reruns.
+- **No LLM judge in the ratchets.** Matching is canonical-id equality, falling
+  back to token overlap for freeform decisions. A judge would make the harness
+  itself flaky, and a flaky harness is one nobody reruns. A case may still carry
+  an ``expected`` rubric, but that is scored by ``tests.evals.judge`` for the
+  eval platforms only, replays from its own cassette, and never gates a test.
 - **Aggregate assertions, never per-case.** Individual cases move for reasons
   that have nothing to do with a regression. The ratchet is on the mean.
 
@@ -82,6 +84,40 @@ class Expectation(pydantic.BaseModel):
         return self.id or f"~{self.match}"
 
 
+RubricSection = Literal[
+    "task_should", "constraints_should", "assumptions_should_cite", "must_not_claim"
+]
+
+
+class Rubric(pydantic.BaseModel):
+    """
+    What a good compiled prompt for this case says. Judged, never matched.
+
+    Each bullet is a claim a reader could check against the rendered prompt, in
+    the vocabulary the domain uses. ``must_not_claim`` bullets are met when the
+    claim is absent.
+    """
+
+    model_config = pydantic.ConfigDict(frozen=True)
+
+    task_should: tuple[str, ...] = ()
+    constraints_should: tuple[str, ...] = ()
+    assumptions_should_cite: tuple[str, ...] = ()
+    must_not_claim: tuple[str, ...] = ()
+
+    def bullets(self) -> tuple[tuple[RubricSection, str], ...]:
+        """
+        :return: Every bullet with the section it belongs to, in a stable order.
+        """
+        sections: tuple[RubricSection, ...] = (
+            "task_should",
+            "constraints_should",
+            "assumptions_should_cite",
+            "must_not_claim",
+        )
+        return tuple((section, bullet) for section in sections for bullet in getattr(self, section))
+
+
 class EvalCase(pydantic.BaseModel):
     """
     One prompt, and what crux is expected to make of it.
@@ -97,6 +133,7 @@ class EvalCase(pydantic.BaseModel):
     must_not_surface: tuple[Expectation, ...] = ()
     must_resolve_by_retrieval: tuple[Expectation, ...] = ()
     max_questions: int = 3
+    expected: Rubric | None = None
 
     @property
     def root(self) -> pathlib.Path | None:

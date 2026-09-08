@@ -1,0 +1,19 @@
+id: dedupe-16
+stratum: one_liner
+prompt: "dedupe events"
+fixture_repo: null
+max_questions: 3
+must_surface:
+  - id: software.scope.build
+  - match: "what makes two events duplicates"
+  - match: "where deduplication happens"
+must_not_surface:
+  - id: software.tests.expectations
+expected:
+  task_should:
+    - "remove duplicate events"
+  assumptions_should_cite:
+    - "what makes two events count as duplicates"
+    - "where in the flow deduplication happens"
+  must_not_claim:
+    - "any fact about the codebase, because no repository was available"

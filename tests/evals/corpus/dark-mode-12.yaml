@@ -1,0 +1,21 @@
+id: dark-mode-12
+stratum: one_liner
+prompt: "add dark mode"
+fixture_repo: next_dashboard
+max_questions: 3
+must_surface:
+  - match: "how the theme preference is stored"
+  - match: "whether the system preference is followed"
+must_not_surface:
+  - id: software.tests.expectations
+  - id: software.compat.breaking
+must_resolve_by_retrieval:
+  - id: software.deps.policy
+expected:
+  task_should:
+    - "add a dark theme to the Next.js dashboard"
+  assumptions_should_cite:
+    - "how the theme preference is stored"
+    - "whether the operating system preference is followed by default"
+  must_not_claim:
+    - "that a theming library is already a dependency"

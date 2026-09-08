@@ -12,3 +12,12 @@ must_not_surface:
   - id: software.tests.expectations
 must_resolve_by_retrieval:
   - id: software.target.files
+expected:
+  task_should:
+    - "make the Go worker survive Redis connection blips without losing jobs"
+  constraints_should:
+    - "how jobs are enqueued does not change"
+  assumptions_should_cite:
+    - "what happens to a job that exhausts its retries"
+  must_not_claim:
+    - "that jobs are already dead-lettered rather than dropped"

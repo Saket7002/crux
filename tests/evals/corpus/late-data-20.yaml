@@ -1,0 +1,23 @@
+id: late-data-20
+stratum: feature
+prompt: >
+  Events sometimes arrive days late. The daily active user numbers need to
+  reflect them once they land.
+fixture_repo: data_pipeline
+max_questions: 4
+must_surface:
+  - id: software.scope.build
+  - match: "how many days back a late event can still update"
+  - match: "whether the daily marts are recomputed or patched"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "make daily_active_users reflect events that arrive after their day"
+  assumptions_should_cite:
+    - "the lookback window for late events"
+    - "whether past days are fully recomputed or patched in place"
+  must_not_claim:
+    - "that the mart is already incremental"

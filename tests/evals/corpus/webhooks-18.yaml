@@ -1,0 +1,25 @@
+id: webhooks-18
+stratum: feature
+prompt: >
+  Deliver a webhook to the customer's URL when a job finishes. Customer
+  endpoints are unreliable, so this needs to cope with failures.
+fixture_repo: go_worker
+max_questions: 4
+must_surface:
+  - id: software.scope.build
+  - match: "how many times a failed delivery is retried"
+  - match: "how a customer verifies a webhook is genuine"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.deps.policy
+expected:
+  task_should:
+    - "send an HTTP webhook from the worker when a job completes"
+  constraints_should:
+    - "failed deliveries are retried rather than dropped"
+  assumptions_should_cite:
+    - "the retry count and backoff"
+    - "how the payload is signed so the customer can verify it"
+  must_not_claim:
+    - "that the worker already has an outbound HTTP client wired up"

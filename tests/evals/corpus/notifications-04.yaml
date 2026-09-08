@@ -12,3 +12,13 @@ must_surface:
   - match: "how a user opts out"
 must_not_surface:
   - id: software.tests.expectations
+expected:
+  task_should:
+    - "add notifications with a per-user opt-out"
+  constraints_should:
+    - "users can turn notifications off"
+  assumptions_should_cite:
+    - "which delivery channel notifications use"
+    - "which events trigger a notification"
+  must_not_claim:
+    - "that an email or push provider is already configured in the repo"
