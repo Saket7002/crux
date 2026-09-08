@@ -158,6 +158,28 @@ EXPAND_TOOL: Final = pllm.ToolSchema(
 )
 
 
+# The part of the expansion system prompt that is *instruction* rather than
+# role or safety. Named so the eval optimiser can propose replacements for it
+# without touching the role line or the no-invention rule, which are not up
+# for negotiation.
+EXPAND_INSTRUCTION: Final = (
+    "A decision is something a competent engineer would have to settle before "
+    "writing code, and that this request does not settle.\n\n"
+    "Do not propose a decision that duplicates one already listed. Do not "
+    "propose style preferences, and do not propose anything the request "
+    "already answers.\n\n"
+    f"Keep it short. At most {MAX_DECISIONS_PER_PASS} decisions, and give options only "
+    "where the set is genuinely closed and short. A long list of marginal "
+    "decisions is worse than a short list of real ones.\n\n"
+    "Use edges. Most decisions only matter once an earlier one goes a "
+    "particular way: a question about email digests is meaningless if the "
+    "answer was in-app only, and a question about retry policy is "
+    "meaningless if the scope is a minimal version. Say so with a requires "
+    "or prunes edge, referring to the other decision by its ref. An edge "
+    "you leave out is a question somebody gets asked for no reason."
+)
+
+
 def expand_messages(
     *,
     prompt: str,
@@ -165,6 +187,7 @@ def expand_messages(
     existing: str,
     evidence: str,
     host_notes: str,
+    instruction: str | None = None,
 ) -> tuple[pllm.Message, ...]:
     """
     Build the expansion conversation.
@@ -174,26 +197,11 @@ def expand_messages(
     :param existing: Decisions already found, rendered.
     :param evidence: What retrieval has turned up, rendered.
     :param host_notes: Anything the host wanted to add.
+    :param instruction: Replaces :data:`EXPAND_INSTRUCTION`. Only the eval
+        optimiser passes this.
     :return: The messages.
     """
-    system = (
-        f"{_ROLE}\n\n"
-        "A decision is something a competent engineer would have to settle before "
-        "writing code, and that this request does not settle.\n\n"
-        "Do not propose a decision that duplicates one already listed. Do not "
-        "propose style preferences, and do not propose anything the request "
-        "already answers.\n\n"
-        f"Keep it short. At most {MAX_DECISIONS_PER_PASS} decisions, and give options only "
-        "where the set is genuinely closed and short. A long list of marginal "
-        "decisions is worse than a short list of real ones.\n\n"
-        "Use edges. Most decisions only matter once an earlier one goes a "
-        "particular way: a question about email digests is meaningless if the "
-        "answer was in-app only, and a question about retry policy is "
-        "meaningless if the scope is a minimal version. Say so with a requires "
-        "or prunes edge, referring to the other decision by its ref. An edge "
-        "you leave out is a question somebody gets asked for no reason.\n\n"
-        f"{_NO_INVENTION}"
-    )
+    system = f"{_ROLE}\n\n{instruction or EXPAND_INSTRUCTION}\n\n{_NO_INVENTION}"
     parts = [f"Request:\n{prompt}", f"\nThis pass asks: {lens}"]
     if existing:
         parts.append(f"\nDecisions already found (do not repeat these):\n{existing}")

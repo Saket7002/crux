@@ -14,6 +14,7 @@ from collections.abc import Sequence
 
 import pytest
 
+import crux.adapters.llm.prompts as xprompt
 import crux.domain.output as coutput
 import crux.domain.session as csessn
 import crux.errors as cerrors
@@ -21,6 +22,7 @@ import crux.ports.llm as pllm
 import tests.evals.compare as compare
 import tests.evals.harness as harness
 import tests.evals.judge as judge
+import tests.evals.optimise as optimise
 import tests.evals.platform.adapter as adapter
 import tests.evals.scorers as scorers
 import tests.support.llm as support_llm
@@ -534,3 +536,104 @@ class TestCompare:
         text = compare.render(current, baseline)
         assert "1 regression(s):" in text
         assert "0.50 -> 0.00" in text
+
+
+class TestOptimise:
+    """
+    The gepa adapter, without gepa or a model.
+    """
+
+    def test_the_candidate_instruction_reaches_the_expansion_prompt(self) -> None:
+        """
+        Test the wiring the whole experiment rests on: the text gepa proposes
+        is what the model is shown, in place of the built-in instruction and
+        with the role and no-invention lines intact.
+        """
+        messages = xprompt.expand_messages(
+            prompt="p", lens="l", existing="", evidence="", host_notes="", instruction="CANDIDATE"
+        )
+        system = messages[0].content
+        assert "CANDIDATE" in system
+        assert xprompt.EXPAND_INSTRUCTION not in system
+        assert "Never invent a value" in system
+
+    def test_the_seed_candidate_is_the_shipped_instruction(self) -> None:
+        """
+        Test that optimisation starts from the truth, so the first score is
+        the current prompt's score and the file's before/after means something.
+        """
+        default = xprompt.expand_messages(
+            prompt="p", lens="l", existing="", evidence="", host_notes=""
+        )
+        assert xprompt.EXPAND_INSTRUCTION in default[0].content
+
+    def test_a_split_is_stratified_and_repeatable(self) -> None:
+        """
+        Test that the held-out third has every prompt size in it and the same
+        seed gives the same split, so two runs are comparable.
+        """
+        cases = harness.load_corpus()
+        train, held = optimise.split(cases, seed=1)
+        assert len(train) + len(held) == len(cases)
+        assert {c.stratum for c in held} == {"one_liner", "feature", "project"}
+        assert optimise.split(cases, seed=1) == (train, held)
+        assert not set(c.id for c in train) & set(c.id for c in held)
+
+    async def test_a_rollout_scores_the_objective_and_explains_it(self) -> None:
+        """
+        Test that one rollout yields the recall-and-quiet objective plus the
+        feedback text, and a failing case scores zero with its error rather
+        than raising, which is gepa's contract.
+        """
+
+        async def run_case(
+            case: harness.EvalCase, client: pllm.LlmClient, instruction: str
+        ) -> csessn.Session:
+            if case.id == "bad":
+                raise cerrors.ReasonerError("declined")
+            return csessn.Session(id=case.id, prompt=case.prompt)
+
+        adapter_ = optimise.ExpandAdapter(support_llm.ScriptedLlm([]), run_case=run_case)
+        good = harness.EvalCase(
+            id="good", prompt="p", must_surface=(harness.Expectation(id="nowhere"),)
+        )
+        bad = harness.EvalCase(id="bad", prompt="p")
+        good_t = await adapter_._rollout(good, "x")
+        bad_t = await adapter_._rollout(bad, "x")
+        assert good_t["score"] == 0.5
+        assert good_t["feedback"] == "missed: nowhere"
+        assert bad_t["score"] == 0.0 and bad_t["feedback"] == "failed: declined"
+
+    def test_the_reflective_dataset_carries_prompt_output_and_feedback(self) -> None:
+        """
+        Test the three fields gepa's proposer reads are filled from the
+        trajectory, keyed by the one component under optimisation.
+        """
+
+        class Batch:
+            trajectories = [
+                optimise.Trajectory(
+                    case_id="c",
+                    prompt="add caching",
+                    surfaced=["what gets cached"],
+                    asked=["software.scope.build"],
+                    feedback="missed: ~how long entries live",
+                    score=0.5,
+                )
+            ]
+
+        adapter_ = optimise.ExpandAdapter(support_llm.ScriptedLlm([]))
+        dataset = adapter_.make_reflective_dataset({"expand": "x"}, Batch(), ["expand"])
+        (record,) = dataset["expand"]
+        assert record["Inputs"] == "add caching"
+        assert "what gets cached" in record["Generated Outputs"]
+        assert record["Feedback"] == "missed: ~how long entries live"
+
+    def test_the_report_says_it_was_not_applied(self) -> None:
+        """
+        Test that the written file tells the reader the winner is a candidate
+        to review, with before and after, never something already in effect.
+        """
+        text = optimise.render("do better", 0.3, 0.5, 120)
+        assert "0.30 -> 0.50" in text and "120 rollouts" in text
+        assert "Not applied" in text and "do better" in text

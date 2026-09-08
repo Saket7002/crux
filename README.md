@@ -242,6 +242,9 @@ uv run python -m tests.evals.saturation --record   # the experiment
 uv run python -m tests.evals.platform --backend stdout            # scores per case, offline
 uv run python -m tests.evals.platform --backend braintrust        # upload a run
 uv run python -m tests.evals.platform --backend opik --record     # re-record, then upload
+uv run python -m tests.evals.platform --baseline tests/evals/results/base.json   # case-by-case diff
+
+uv run python -m tests.evals.optimise --budget 300    # evolve the expand instruction (real model)
 ```
 
 **Recall evals** score whether crux surfaced the decisions a person said mattered
@@ -270,6 +273,18 @@ The judge is the one LLM-scored number, and it never gates a test. It runs
 through crux's own client, so it records to `cassettes/judge.json` and replays
 for free; a rubric edit or a prompt change is what makes it need a re-record.
 Pass `--judge-model` to stop a model grading its own work.
+
+Two runs are compared **case by case**, not only on the mean: `--baseline` says,
+per score, how many cases the new run leads and trails, and names every case
+that regressed. A prompt that fixes the project briefs and breaks one one-liner
+is flat on the mean and visible here.
+
+**Prompt optimisation** follows GEPA (arXiv 2507.19457): `tests.evals.optimise`
+evolves the expansion instruction alone, using recall and quiet as the objective
+and the scorer's feedback text as the signal a reflection model reads. Every
+rollout is a real model call, so it is never run in CI. The winner is written to
+`tests/evals/results/expand_instruction.md`, never applied; applying it is a
+reviewed edit followed by a re-record.
 
 **The saturation experiment** answers whether the graph earns its keep, with the
 decision rule committed in advance:

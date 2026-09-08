@@ -42,6 +42,7 @@ dev = [
 evals = [
     "braintrust>=0.37",
     "opik>=2.2",
+    "gepa>=0.1.4",
 ]
 
 [project.scripts]
@@ -76,7 +77,16 @@ plugins = ["pydantic.mypy"]
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = ["litellm", "litellm.*", "braintrust", "braintrust.*", "opik", "opik.*"]
+module = [
+    "litellm",
+    "litellm.*",
+    "braintrust",
+    "braintrust.*",
+    "opik",
+    "opik.*",
+    "gepa",
+    "gepa.*",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

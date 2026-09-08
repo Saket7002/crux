@@ -43,15 +43,21 @@ class LlmReasoner:
         self,
         client: pllm.LlmClient,
         routing: xroute.ModelRouting | None = None,
+        *,
+        expand_instruction: str | None = None,
     ) -> None:
         """
         :param client: Where completions come from.
         :param routing: Which model serves which operation. The default routes
             everything to the client's own model, which is what keeps every
             existing caller working unchanged.
+        :param expand_instruction: Replaces the expansion instruction. Exists
+            for the eval optimiser, which proposes candidates for that text;
+            hosts leave it unset.
         """
         self._client = client
         self._routing = routing or xroute.DEFAULT
+        self._expand_instruction = expand_instruction
 
     # ## Operations
 
@@ -69,6 +75,7 @@ class LlmReasoner:
                 existing=_render_sketches(request.existing),
                 evidence="\n".join(request.evidence_digest),
                 host_notes=request.host_notes,
+                instruction=self._expand_instruction,
             ),
             xprompt.EXPAND_TOOL,
             "expand",
