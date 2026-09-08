@@ -5,6 +5,10 @@ Upload one eval run to a platform, or print it.
     uv run python -m tests.evals.platform --backend braintrust --project crux
     uv run python -m tests.evals.platform --backend opik --record
 
+Every run also writes its per-case scores to ``results/<experiment>.json``, and
+``--baseline`` compares against an earlier file case by case: which run leads
+on how many cases, and which cases regressed. The mean hides both.
+
 Replays from ``cassettes/recall.json`` and ``cassettes/judge.json`` unless
 ``--record`` is given. The run shares the recall cassette on purpose: the
 scores uploaded are then byte-for-byte the ones the ratchet asserts on, and one
@@ -16,9 +20,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import pathlib
 
 import crux.errors as cerrors
 import crux.infra.settings as isettn
+import tests.evals.compare as compare
 import tests.evals.harness as harness
 import tests.evals.platform.adapter as adapter
 import tests.evals.runner as runner
@@ -77,14 +83,21 @@ async def _main(args: argparse.Namespace) -> int:
         corpus_size=len(cases),
     )
     backend = build_backend(args.backend, project=args.project, experiment=args.experiment)
-    try:
-        await adapter.run_experiment(
-            cases, backend, client, judge_client, meta, judge_model=args.judge_model
-        )
-    except KeyError as exc:
-        print(f"cassette miss ({exc}); rerun with --record")
-        return 1
+    results = await adapter.run_experiment(
+        cases, backend, client, judge_client, meta, judge_model=args.judge_model
+    )
     print(f"\ncassette hits {client.hits}, misses {client.misses}")
+    if any("Cassette miss" in r.error for r in results):
+        print("some cases hit a cassette miss; rerun with --record to capture them")
+
+    experiment = args.experiment or args.backend
+    run = adapter.to_results(results, meta, experiment=experiment)
+    out = pathlib.Path(args.out) if args.out else compare.RESULTS / f"{experiment}.json"
+    compare.save(run, out)
+    print(f"wrote {out}")
+    if args.baseline:
+        print()
+        print(compare.render(run, compare.load(pathlib.Path(args.baseline))))
     return 0
 
 
@@ -100,6 +113,8 @@ def main() -> int:
     parser.add_argument("--experiment", default=None, help="experiment name")
     parser.add_argument("--no-judge", action="store_true", help="skip the rubric judge")
     parser.add_argument("--judge-model", default=None, help="model that judges rubrics")
+    parser.add_argument("--out", default=None, help="where to write this run's results")
+    parser.add_argument("--baseline", default=None, help="a results file to compare against")
     return asyncio.run(_main(parser.parse_args()))
 
 

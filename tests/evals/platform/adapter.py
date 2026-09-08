@@ -33,6 +33,7 @@ import crux.errors as cerrors
 import crux.infra.evidence as ievid
 import crux.infra.settings as isettn
 import crux.ports.llm as pllm
+import tests.evals.compare as compare
 import tests.evals.harness as harness
 import tests.evals.judge as judge
 import tests.evals.runner as runner
@@ -291,10 +292,11 @@ async def run_experiment(
             result = await _run_one(
                 case, traced, judge_client, run, finish, judge_model=judge_model
             )
-        except cerrors.CruxError as exc:
+        except (cerrors.CruxError, KeyError) as exc:
             # One case must not cost the run. The saturation experiment learnt
             # this the expensive way: a provider declining a single request
-            # threw away eight completed cases.
+            # threw away eight completed cases. A cassette miss (KeyError) is
+            # the same shape: one stale case must not lose the other 29.
             result = CaseResult(
                 case=case,
                 score=None,
@@ -439,3 +441,34 @@ def _crux_version() -> str:
         return importlib.metadata.version("crux-clarify")
     except importlib.metadata.PackageNotFoundError:
         return "unknown"
+
+
+def to_results(
+    results: Sequence[CaseResult], meta: RunMetadata, *, experiment: str
+) -> compare.RunResults:
+    """
+    Reduce finished results to what a later comparison needs.
+
+    :param results: Every case's result.
+    :param meta: What the run was.
+    :param experiment: A name for it.
+    :return: The rows, ready to write.
+    """
+    return compare.RunResults(
+        experiment=experiment,
+        model=meta.model,
+        git_sha=meta.git_sha,
+        cassette_mode=meta.cassette_mode,
+        recorded_at=meta.started_at,
+        rows=tuple(
+            compare.CaseRow(
+                case_id=r.case.id,
+                stratum=r.case.stratum,
+                scores=r.scores,
+                metrics=r.metrics,
+                feedback=r.feedback,
+                error=r.error,
+            )
+            for r in results
+        ),
+    )

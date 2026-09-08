@@ -8,6 +8,7 @@ confident wrong number in a dashboard, which is worse than no dashboard.
 
 from __future__ import annotations
 
+import pathlib
 import sys
 from collections.abc import Sequence
 
@@ -17,6 +18,7 @@ import crux.domain.output as coutput
 import crux.domain.session as csessn
 import crux.errors as cerrors
 import crux.ports.llm as pllm
+import tests.evals.compare as compare
 import tests.evals.harness as harness
 import tests.evals.judge as judge
 import tests.evals.platform.adapter as adapter
@@ -461,3 +463,74 @@ class TestPrintBackend:
         summary = backend.finish()
         assert "judge" in summary and "recall" in summary
         assert "cassette replay" in summary
+
+
+def _run(name: str, rows: dict[str, dict[str, float]]) -> compare.RunResults:
+    import datetime as dt
+
+    return compare.RunResults(
+        experiment=name,
+        model="m",
+        git_sha="abc",
+        cassette_mode="replay",
+        recorded_at=dt.datetime.now(tz=dt.UTC),
+        rows=tuple(
+            compare.CaseRow(case_id=case_id, stratum="feature", scores=scores, metrics={})
+            for case_id, scores in rows.items()
+        ),
+    )
+
+
+class TestCompare:
+    """
+    Two runs compared case by case.
+    """
+
+    def test_leads_count_cases_not_points(self) -> None:
+        """
+        Test the thing the mean hides: two small wins and one large loss is
+        flat on the mean but reads as leading two cases and trailing one.
+        """
+        current = _run("new", {"a": {"recall": 0.6}, "b": {"recall": 0.6}, "c": {"recall": 0.0}})
+        baseline = _run("old", {"a": {"recall": 0.5}, "b": {"recall": 0.5}, "c": {"recall": 0.2}})
+        assert current.mean("recall") == pytest.approx(baseline.mean("recall"))
+        assert compare.leads(current, baseline)["recall"] == compare.Leads(wins=2, losses=1, ties=0)
+
+    def test_regressions_name_the_case_worst_first(self) -> None:
+        """
+        Test that a regression is reported by case and score with both values,
+        so the reader can go straight to the corpus file.
+        """
+        current = _run("new", {"a": {"recall": 0.0, "quiet": 1.0}, "b": {"recall": 0.4}})
+        baseline = _run("old", {"a": {"recall": 0.5, "quiet": 1.0}, "b": {"recall": 0.5}})
+        worse = compare.regressions(current, baseline)
+        assert [(r.case_id, r.score) for r in worse] == [("a", "recall"), ("b", "recall")]
+
+    def test_a_case_missing_from_one_run_neither_wins_nor_loses(self) -> None:
+        """
+        Test that a case that failed in one run, or a score only one run has,
+        stays out of the count rather than counting as a loss.
+        """
+        current = _run("new", {"a": {"recall": 1.0}, "b": {"recall": 1.0, "judge": 0.5}})
+        baseline = _run("old", {"a": {"recall": 1.0}})
+        result = compare.leads(current, baseline)
+        assert result["recall"] == compare.Leads(wins=0, losses=0, ties=1)
+        assert result["judge"] == compare.Leads(wins=0, losses=0, ties=0)
+
+    def test_results_round_trip_through_disk(self, tmp_path: pathlib.Path) -> None:
+        """
+        Test that what the command writes is what the comparison reads.
+        """
+        run = _run("new", {"a": {"recall": 0.5}})
+        compare.save(run, tmp_path / "r" / "new.json")
+        assert compare.load(tmp_path / "r" / "new.json") == run
+
+    def test_render_shows_leads_and_regressions(self) -> None:
+        """
+        Test the table names the regression rather than only counting it.
+        """
+        current = _run("new", {"a": {"recall": 0.0}})
+        baseline = _run("old", {"a": {"recall": 0.5}})
+        text = compare.render(current, baseline)
+        assert "1 regression(s):" in text
+        assert "0.50 -> 0.00" in text
