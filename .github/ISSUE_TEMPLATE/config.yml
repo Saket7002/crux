@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/Vedanshu7/crux/security/advisories/new
+    about: Report privately, not as a public issue.
+  - name: Question or idea
+    url: https://github.com/Vedanshu7/crux/discussions
+    about: For anything that is not a bug or a concrete request.

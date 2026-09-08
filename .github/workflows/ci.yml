@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned to the major tag, which is what Actions can resolve. setup-uv
+      # publishes releases well ahead of it (v10.x exists, the v10 tag does
+      # not), so "upgrading" to match the release name breaks the run.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --extra dev
+
+      # The same four commands the contributing guide asks you to run locally,
+      # in the same order, so a green local gate means a green CI run.
+      - name: Format
+        run: uv run ruff format --check .
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Types
+        run: uv run mypy
+
+      # Live tests hit a real provider and cost money, so they never run here.
+      # They are a measurement, not a correctness check.
+      - name: Tests
+        run: uv run pytest -m "not live"
+
+  gate-is-idempotent:
+    name: gate changes nothing on a second run
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned to the major tag, which is what Actions can resolve. setup-uv
+      # publishes releases well ahead of it (v10.x exists, the v10 tag does
+      # not), so "upgrading" to match the release name breaks the run.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --extra dev
+
+      # The house rule is that the gate reports nothing and changes nothing on a
+      # second run. A formatter that keeps finding new work is a formatter
+      # nobody can trust, and it turns every review into a diff about whitespace.
+      - name: Run the gate twice and diff
+        run: |
+          uv run ruff format . >/dev/null
+          uv run ruff check --fix . >/dev/null || true
+          uv run ruff format . >/dev/null
+          git diff --exit-code

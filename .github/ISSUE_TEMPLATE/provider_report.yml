@@ -1,0 +1,52 @@
+name: Provider behaviour
+description: A model or provider that behaves differently from the others.
+labels: ["provider"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        These are among the most useful issues crux gets. Every provider tried so
+        far has done something unexpected: one validates tool schemas
+        server-side and rejects a whole batch over a single nested field, one
+        counts the tokens you *reserve* rather than the ones you use, one answers
+        in prose where a forced tool call was demanded. Each of those changed the
+        design.
+
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      placeholder: cohere_chat/command-a-03-2025
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of difference
+      options:
+        - Refuses or mangles the tool schema
+        - Answers in prose instead of calling the forced tool
+        - Rate limits in a way the retry logic mishandles
+        - Rejects a parameter crux sends
+        - Produces decisions of noticeably different quality
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: detail
+    attributes:
+      label: What it does
+      description: The error text verbatim if there is one, or what you observed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Settings that made it work, if any
+      description: >
+        For example `CRUX_MAX_TOKENS`, `CRUX_REASONING_EFFORT`, or a per-model
+        block in `crux.toml`.
+      render: toml

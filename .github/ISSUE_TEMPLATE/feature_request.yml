@@ -1,0 +1,28 @@
+name: Feature request
+description: Something crux should do and does not.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: >
+        What are you trying to do, and where does crux get in the way? Describe
+        the situation rather than the solution; the fix is often not the one that
+        first comes to mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you had in mind
+      description: Optional. A sketch is fine.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you tried instead
+      description: >
+        crux has five sockets a host can implement. If one of them nearly does
+        what you need, say which and what was missing.

@@ -1,0 +1,56 @@
+name: Bug report
+description: Something crux does that it should not.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If you can, run with `--evidence ./evidence` and attach `run.md`. It
+        records the expansion passes, what retrieval found, every model
+        exchange, and why each decision closed. It usually answers the first
+        three questions anyone would ask.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The prompt, the command, and the repo it ran against.
+      placeholder: |
+        uv run crux clarify "add rate limiting" --root ./examples/tiny_fastapi
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: >
+        The full CRUX_MODEL string, including the provider prefix. Provider
+        behaviour differs a lot here, so this is usually the deciding detail.
+      placeholder: groq/openai/gpt-oss-20b
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Resolved config
+      description: >
+        Output of `crux config`. It shows which model serves which operation and
+        where each setting came from. Redact anything you would rather not share.
+      render: text
+
+  - type: textarea
+    id: trace
+    attributes:
+      label: Evidence trace
+      description: The contents of `run.md`, if you have one.
+      render: markdown
