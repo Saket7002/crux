@@ -697,6 +697,47 @@ class TestSiblingDependencies:
         channel = _find(done.session, "delivery channel")
         assert [e.source_id for e in digest.edges("requires")] == [channel.id]
 
+    async def test_a_ref_that_names_a_real_decision_cannot_capture_its_edges(self) -> None:
+        """
+        Test that a sibling ref equal to an existing id is ignored, so an edge
+        naming that id still points at the pack decision.
+
+        Seen live: a model labelled a proposal with the ref
+        ``software.scope.build``. Refs are resolved before known ids, so every
+        edge written against the real build-scope decision would have been
+        rewired to the new proposal without a log line.
+        """
+        reasoner = fakes.FakeReasoner(
+            expansions=[
+                preason.ExpansionResult(
+                    proposed=(
+                        fakes.proposal(
+                            "mechanism for soft-deleting items",
+                            ref="software.scope.build",
+                        ),
+                        fakes.proposal(
+                            "how long a deleted item stays restorable",
+                            edges=(
+                                preason.ProposedEdge(
+                                    kind="requires",
+                                    source_id="software.scope.build",
+                                    when_value="production",
+                                ),
+                            ),
+                        ),
+                    )
+                )
+            ]
+        )
+        crux = aengine.Crux(reasoner=reasoner, budget=HEADLESS)
+
+        done = await crux.start("soft delete items")
+
+        assert isinstance(done, csessn.Done)
+        restorable = _find(done.session, "stays restorable")
+        assert [e.source_id for e in restorable.edges("requires")] == ["software.scope.build"]
+        assert _find(done.session, "soft-deleting").id.startswith("open.p1.")
+
     async def test_an_unborn_sibling_is_never_asked_about(self) -> None:
         """
         Test the payoff of the edge above: choosing in-app means the digest

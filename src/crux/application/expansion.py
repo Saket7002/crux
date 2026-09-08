@@ -113,7 +113,17 @@ def absorb(
         decision_id = cids.freeform_id(proposal.undecided, pass_index=pass_index)
         survivors.append((position, proposal, decision_id))
         existing[decision_id] = proposal.undecided
-        if proposal.ref:
+        if proposal.ref and proposal.ref in graph.nodes:
+            # A ref is a private label for a sibling in this batch. A model
+            # that reuses a real id as one -- "software.scope.build" was seen
+            # -- would otherwise capture every edge meant for the pack decision
+            # and redirect it to the new proposal, silently.
+            _LOG.warning(
+                "Ignoring sibling ref %r on %r: it names an existing decision",
+                proposal.ref,
+                decision_id,
+            )
+        elif proposal.ref:
             refs[proposal.ref] = decision_id
 
     added = 0
