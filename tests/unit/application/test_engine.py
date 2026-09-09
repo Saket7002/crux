@@ -1038,3 +1038,100 @@ class TestEvidencePassIsNotStarved:
         informed = [r for r in records if r.saw_evidence]
         assert len(blind) == 2, "blind expansion must still respect max_passes"
         assert len(informed) == 1, "the evidence pass must run anyway"
+
+
+class TestPackSelection:
+    """
+    Which pack a session seeds from when the host names none.
+    """
+
+    def _video_pack(self) -> object:
+        import crux.packs.base as kspec
+
+        return kspec.DecisionPack(
+            id="video",
+            description="Decisions that recur in a short video script",
+            specs=(
+                kspec.DecisionSpec(
+                    canonical_id="video.length",
+                    undecided="Target length",
+                    type="underspecification",
+                    cost_if_wrong="high",
+                    reversibility="hard",
+                    always=True,
+                ),
+            ),
+        )
+
+    async def test_one_registered_pack_is_used_without_a_model_call(self) -> None:
+        """
+        Test that the common case costs nothing: with only the software pack
+        registered, no selection call is made and the session says software.
+        """
+        reasoner = fakes.FakeReasoner()
+        crux = aengine.Crux(reasoner=reasoner, budget=HEADLESS)
+
+        done = await crux.start("add caching")
+
+        assert done.session.context.pack_ids == ("software",)
+        assert reasoner.count("select_pack") == 0
+
+    async def test_the_model_picks_among_several_and_the_choice_is_recorded(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Test that with two packs registered the model is asked once, its
+        choice seeds the graph, and the rationale lands on the session for the
+        compiled prompt to cite.
+        """
+        import crux.packs.base as kspec
+
+        monkeypatch.setattr(kspec, "_REGISTRY", dict(kspec._REGISTRY))
+        kspec.register(self._video_pack())  # type: ignore[arg-type]
+        reasoner = fakes.FakeReasoner(pack_choice="video")
+        crux = aengine.Crux(reasoner=reasoner, budget=HEADLESS)
+
+        done = await crux.start("write a script for a short video")
+
+        assert done.session.context.pack_ids == ("video",)
+        assert done.session.context.pack_rationale == "scripted"
+        assert "video.length" in done.session.graph.nodes
+        assert "software.scope.build" not in done.session.graph.nodes
+        assert reasoner.count("select_pack") == 1
+
+    async def test_an_invented_pack_id_falls_back_to_software_and_says_so(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Test that a model naming a pack that does not exist cannot seed
+        nothing: the session falls back and records why.
+        """
+        import crux.packs.base as kspec
+
+        monkeypatch.setattr(kspec, "_REGISTRY", dict(kspec._REGISTRY))
+        kspec.register(self._video_pack())  # type: ignore[arg-type]
+        crux = aengine.Crux(reasoner=fakes.FakeReasoner(pack_choice="marketing"), budget=HEADLESS)
+
+        done = await crux.start("plan a campaign")
+
+        assert done.session.context.pack_ids == ("software",)
+        assert "marketing" in done.session.context.pack_rationale
+
+    async def test_a_host_that_names_packs_is_never_second_guessed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Test that explicit pack_ids skip selection entirely, even with several
+        packs registered.
+        """
+        import crux.packs.base as kspec
+
+        monkeypatch.setattr(kspec, "_REGISTRY", dict(kspec._REGISTRY))
+        kspec.register(self._video_pack())  # type: ignore[arg-type]
+        reasoner = fakes.FakeReasoner(pack_choice="video")
+        crux = aengine.Crux(reasoner=reasoner, pack_ids=("software",), budget=HEADLESS)
+
+        done = await crux.start("write a script for a short video")
+
+        assert done.session.context.pack_ids == ("software",)
+        assert reasoner.count("select_pack") == 0

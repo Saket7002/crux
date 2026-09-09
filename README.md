@@ -145,18 +145,23 @@ touches your environment. Set the variables yourself, or pass a `CruxSettings`.
 
 ## Different models for different jobs
 
-Two tiers, because the six things crux asks a model to do are not equally hard.
+Two tiers, because the seven things crux asks a model to do are not equally hard.
 
 | Tier | Operations | Why |
 |---|---|---|
 | `CRUX_MODEL` | expand, adjudicate | Open-ended judgement. Naming what is undecided, and deciding what retrieved code actually settles. Where a weak model visibly fails. |
-| `CRUX_WEAK_MODEL` | phrase, classify, answer_counter, draft | Bounded transformations over material already supplied. Defaults to the reasoning model, so one variable still works. |
+| `CRUX_WEAK_MODEL` | phrase, classify, answer_counter, draft, select_pack | Bounded transformations over material already supplied. Defaults to the reasoning model, so one variable still works. |
 
 ```bash
 export CRUX_MODEL=anthropic/claude-sonnet-5
 export CRUX_WEAK_MODEL=groq/openai/gpt-oss-20b
 export CRUX_FALLBACK_MODELS=gemini/gemini-3.6-flash,cohere_chat/command-a-03-2025
 ```
+
+Pack selection is the seventh operation, and it is only made when a host names no
+pack and more than one is registered: one call picks the domain pack from the
+prompt, and the session records the choice and why. With one pack registered,
+which is the case today, nothing is asked.
 
 Drafting sits in the cheap tier deliberately: the compiled prompt's substance
 comes from the decision records, and its assumptions block is derived by code

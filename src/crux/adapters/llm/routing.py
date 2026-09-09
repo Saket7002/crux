@@ -34,6 +34,7 @@ MECHANICAL: tuple[preason.Operation, ...] = (
     "classify",
     "answer_counter",
     "draft",
+    "select_pack",
 )
 """Bounded transformations over material already supplied.
 

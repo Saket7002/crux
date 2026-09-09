@@ -31,6 +31,7 @@ class FakeReasoner:
         counters: Sequence[preason.CounterResult] = (),
         task: str = "",
         constraints: Sequence[str] = (),
+        pack_choice: str | None = None,
     ) -> None:
         """
         :param expansions: One result per expansion pass; exhausting the queue
@@ -40,6 +41,8 @@ class FakeReasoner:
         :param counters: One per resume that had a counter-question.
         :param task: Task prose to draft.
         :param constraints: Constraints to draft.
+        :param pack_choice: What ``select_pack`` answers. ``None`` answers with
+            the first pack offered.
         """
         self._expansions = list(expansions)
         self._adjudications = list(adjudications)
@@ -47,6 +50,7 @@ class FakeReasoner:
         self._counters = list(counters)
         self._task = task
         self._constraints = tuple(constraints)
+        self._pack_choice = pack_choice
         self.calls: list[tuple[str, object]] = []
 
     def count(self, method: str) -> int:
@@ -108,6 +112,11 @@ class FakeReasoner:
                 )
             )
         return self._counters.pop(0)
+
+    async def select_pack(self, request: preason.PackSelectRequest) -> preason.PackSelectResult:
+        self.calls.append(("select_pack", request))
+        chosen = self._pack_choice or (request.packs[0].id if request.packs else "")
+        return preason.PackSelectResult(pack_id=chosen, rationale="scripted")
 
     async def draft(self, request: preason.DraftRequest) -> preason.DraftResult:
         self.calls.append(("draft", request))
