@@ -71,6 +71,8 @@ class CaseResult(pydantic.BaseModel):
     scores: dict[str, float]
     metrics: dict[str, int]
     rendered: str
+    surfaced: tuple[str, ...] = ()
+    """What every decision in the graph said was undecided, for the misses report."""
     judge_rationale: str = ""
     feedback: str = ""
     """Why it scored what it did, one finding per line. See ``scorers.feedback``."""
@@ -346,6 +348,7 @@ async def _run_one(
         scores=scores,
         metrics=scorers.metrics(score),
         rendered=rendered,
+        surfaced=tuple(n.undecided for n in session.graph.nodes.values()),
         judge_rationale=judgement.rationale if judgement else "",
         feedback=scorers.feedback(score, case, judgement),
     )
@@ -482,6 +485,9 @@ def to_results(
                 metrics=r.metrics,
                 feedback=r.feedback,
                 error=r.error,
+                expected=len(r.case.must_surface),
+                missed=tuple(r.score.missed) if r.score else (),
+                surfaced=r.surfaced,
             )
             for r in results
         ),

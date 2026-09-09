@@ -25,6 +25,7 @@ import tests.evals.judge as judge
 import tests.evals.models as models
 import tests.evals.optimise as optimise
 import tests.evals.platform.adapter as adapter
+import tests.evals.rescoring as rescoring
 import tests.evals.runner as runner
 import tests.evals.scorers as scorers
 import tests.evals.systems as systems
@@ -787,3 +788,72 @@ class TestPerModel:
         assert lines[2].startswith("strong") and lines[3].startswith("weak")
         assert "leads over weak" in text
         assert "recall 1/0/1" in text
+
+
+class TestRescoring:
+    """
+    Bounding matcher error by hand.
+    """
+
+    def _run(self) -> compare.RunResults:
+        import datetime as dt
+
+        return compare.RunResults(
+            experiment="e",
+            model="m",
+            git_sha="abc",
+            cassette_mode="replay",
+            recorded_at=dt.datetime.now(tz=dt.UTC),
+            rows=(
+                compare.CaseRow(
+                    case_id="sigterm-11",
+                    stratum="one_liner",
+                    scores={"recall": 0.0},
+                    metrics={},
+                    expected=1,
+                    missed=("~how long in-flight jobs get to finish",),
+                    surfaced=(
+                        "timeout duration for graceful shutdown",
+                        "cleanup tasks during shutdown",
+                        "logging level during shutdown",
+                        "in-flight jobs and how long they get to finish",
+                    ),
+                ),
+                compare.CaseRow(
+                    case_id="clean",
+                    stratum="feature",
+                    scores={"recall": 1.0},
+                    metrics={},
+                    expected=2,
+                ),
+            ),
+        )
+
+    def test_misses_show_the_nearest_surfaced_decisions_by_overlap(self) -> None:
+        """
+        Test that the person sees the likeliest paraphrase first, so marking
+        is a glance rather than a search through twenty decisions.
+        """
+        (miss,) = rescoring.misses(self._run())
+        assert miss.case_id == "sigterm-11"
+        assert miss.nearest[0][0] == "in-flight jobs and how long they get to finish"
+        assert len(miss.nearest) == rescoring.NEAREST
+
+    def test_a_covered_mark_raises_recall_and_a_null_does_not(self, tmp_path: pathlib.Path) -> None:
+        """
+        Test the arithmetic through the file a person edits: one miss marked
+        covered turns a 0.0 case into 1.0 and moves the mean by exactly that
+        case's share.
+        """
+        run = self._run()
+        path = tmp_path / "misses.yaml"
+        path.write_text(rescoring.template(rescoring.misses(run)), encoding="utf-8")
+        assert rescoring.corrected(run, rescoring.load_rescores(path))[1:] == (0.5, 0.5)
+        path.write_text(
+            path.read_text().replace("covered_by: null", "covered_by: in-flight jobs"),
+            encoding="utf-8",
+        )
+        per_case, auto_mean, fixed_mean = rescoring.corrected(run, rescoring.load_rescores(path))
+        assert per_case["sigterm-11"] == (0.0, 1.0)
+        assert (auto_mean, fixed_mean) == (0.5, 1.0)
+        assert "1 hand-covered" in rescoring.render_corrected(run, rescoring.load_rescores(path))

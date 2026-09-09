@@ -10,6 +10,10 @@ Upload one eval run to a platform, or print it.
 stripped). Baselines write their own results file, named after the system, so
 ``--baseline`` compares them to crux case by case.
 
+``--misses`` prints every missed expectation beside the surfaced decisions
+nearest to it and writes a template; a person marks which were really covered
+and ``--rescored`` reports recall corrected for matcher error.
+
 Every run also writes its per-case scores to ``results/<experiment>.json``, and
 ``--baseline`` compares against an earlier file case by case: which run leads
 on how many cases, and which cases regressed. The mean hides both.
@@ -38,6 +42,7 @@ import crux.ports.llm as pllm
 import tests.evals.compare as compare
 import tests.evals.harness as harness
 import tests.evals.platform.adapter as adapter
+import tests.evals.rescoring as rescoring
 import tests.evals.runner as runner
 import tests.evals.systems as systems
 
@@ -121,6 +126,16 @@ async def _main(args: argparse.Namespace) -> int:
     if args.baseline:
         print()
         print(compare.render(run, compare.load(pathlib.Path(args.baseline))))
+    if args.misses:
+        found = rescoring.misses(run)
+        template = out.with_name(f"{out.stem}-misses.yaml")
+        template.write_text(rescoring.template(found), encoding="utf-8")
+        print()
+        print(rescoring.render(found))
+        print(f"fill in covered_by in {template}, then rerun with --rescored {template}")
+    if args.rescored:
+        print()
+        print(rescoring.render_corrected(run, rescoring.load_rescores(pathlib.Path(args.rescored))))
     return 0
 
 
@@ -145,6 +160,12 @@ def main() -> int:
     parser.add_argument("--judge-model", default=None, help="model that judges rubrics")
     parser.add_argument("--out", default=None, help="where to write this run's results")
     parser.add_argument("--baseline", default=None, help="a results file to compare against")
+    parser.add_argument(
+        "--misses", action="store_true", help="print every miss with its nearest surfaced decisions"
+    )
+    parser.add_argument(
+        "--rescored", default=None, help="a filled-in misses file; prints corrected recall"
+    )
     return asyncio.run(_main(parser.parse_args()))
 
 

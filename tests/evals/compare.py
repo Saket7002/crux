@@ -35,6 +35,12 @@ class CaseRow(pydantic.BaseModel):
     metrics: dict[str, int]
     feedback: str = ""
     error: str = ""
+    expected: int = 0
+    """How many decisions the case said must surface."""
+    missed: tuple[str, ...] = ()
+    """The expectation labels that did not surface."""
+    surfaced: tuple[str, ...] = ()
+    """What every decision in the graph said was undecided."""
 
 
 class RunResults(pydantic.BaseModel):
