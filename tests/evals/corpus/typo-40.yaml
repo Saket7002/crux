@@ -1,0 +1,19 @@
+id: typo-40
+author: claude
+stratum: one_liner
+prompt: "fix the typo in the 401 error message in auth.py: it should say 'missing bearer token', not 'missing bearer tokn'"
+fixture_repo: fastapi_service
+max_questions: 1
+must_not_surface:
+  - id: software.tests.expectations
+  - id: software.deps.policy
+  - id: software.compat.breaking
+  - id: software.scope.build
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "correct the error string in app/auth.py"
+  must_not_claim:
+    - "that build scope or dependencies need deciding"
+    - "that anything beyond the one string changes"

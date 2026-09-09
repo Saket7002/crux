@@ -1,4 +1,5 @@
 id: tenant-config-21
+author: claude
 stratum: feature
 prompt: >
   Let each tenant override a few settings, like their default timezone and

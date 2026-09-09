@@ -1,4 +1,5 @@
 id: incremental-23
+author: claude
 stratum: feature
 prompt: >
   The daily_active_users model is getting slow because it rebuilds everything.

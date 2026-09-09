@@ -1,4 +1,5 @@
 id: worker-retry-06
+author: vedanshu
 stratum: feature
 prompt: >
   The job worker drops work when Redis blips. Make it resilient without

@@ -33,6 +33,7 @@ import crux.errors as cerrors
 import crux.infra.evidence as ievid
 import crux.infra.settings as isettn
 import crux.ports.llm as pllm
+import tests.evals.compare as compare
 import tests.evals.harness as harness
 import tests.evals.judge as judge
 import tests.evals.runner as runner
@@ -70,6 +71,8 @@ class CaseResult(pydantic.BaseModel):
     scores: dict[str, float]
     metrics: dict[str, int]
     rendered: str
+    surfaced: tuple[str, ...] = ()
+    """What every decision in the graph said was undecided, for the misses report."""
     judge_rationale: str = ""
     feedback: str = ""
     """Why it scored what it did, one finding per line. See ``scorers.feedback``."""
@@ -291,10 +294,11 @@ async def run_experiment(
             result = await _run_one(
                 case, traced, judge_client, run, finish, judge_model=judge_model
             )
-        except cerrors.CruxError as exc:
+        except (cerrors.CruxError, KeyError) as exc:
             # One case must not cost the run. The saturation experiment learnt
             # this the expensive way: a provider declining a single request
-            # threw away eight completed cases.
+            # threw away eight completed cases. A cassette miss (KeyError) is
+            # the same shape: one stale case must not lose the other 29.
             result = CaseResult(
                 case=case,
                 score=None,
@@ -344,9 +348,24 @@ async def _run_one(
         scores=scores,
         metrics=scorers.metrics(score),
         rendered=rendered,
+        surfaced=tuple(n.undecided for n in session.graph.nodes.values()),
         judge_rationale=judgement.rationale if judgement else "",
         feedback=scorers.feedback(score, case, judgement),
     )
+
+
+def finish_with_scripted_respondent(
+    case: harness.EvalCase, client: pllm.LlmClient, session: csessn.Session
+) -> Awaitable[coutput.CompiledPrompt | None]:
+    """
+    The default way to carry a scored session to a compiled prompt.
+
+    :param case: The case.
+    :param client: Where completions come from.
+    :param session: The session as scored.
+    :return: The compiled prompt, or ``None`` when there is nothing to finish.
+    """
+    return _default_finish_case(case, client, session)
 
 
 class PrintBackend:
@@ -439,3 +458,37 @@ def _crux_version() -> str:
         return importlib.metadata.version("crux-clarify")
     except importlib.metadata.PackageNotFoundError:
         return "unknown"
+
+
+def to_results(
+    results: Sequence[CaseResult], meta: RunMetadata, *, experiment: str
+) -> compare.RunResults:
+    """
+    Reduce finished results to what a later comparison needs.
+
+    :param results: Every case's result.
+    :param meta: What the run was.
+    :param experiment: A name for it.
+    :return: The rows, ready to write.
+    """
+    return compare.RunResults(
+        experiment=experiment,
+        model=meta.model,
+        git_sha=meta.git_sha,
+        cassette_mode=meta.cassette_mode,
+        recorded_at=meta.started_at,
+        rows=tuple(
+            compare.CaseRow(
+                case_id=r.case.id,
+                stratum=r.case.stratum,
+                scores=r.scores,
+                metrics=r.metrics,
+                feedback=r.feedback,
+                error=r.error,
+                expected=len(r.case.must_surface),
+                missed=tuple(r.score.missed) if r.score else (),
+                surfaced=r.surfaced,
+            )
+            for r in results
+        ),
+    )

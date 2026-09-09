@@ -1,4 +1,5 @@
 id: pagination-10
+author: claude
 stratum: one_liner
 prompt: "add pagination to the items list"
 fixture_repo: fastapi_service

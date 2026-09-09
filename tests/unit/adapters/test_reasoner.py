@@ -353,3 +353,33 @@ class TestOperationRouting:
         client = await self._run(None, {})
 
         assert client.require_tool == [True, True, True, True, True, False]
+
+
+class TestSelectPack:
+    """
+    The pack-selection prompt and its parsing.
+    """
+
+    async def test_the_prompt_lists_every_pack_and_the_choice_is_parsed(self) -> None:
+        """
+        Test that the model is shown each pack id with its description and
+        that its answer comes back as written, invented or not; the engine
+        owns the fallback.
+        """
+        client = scripted.ScriptedLlm([{"pack_id": "video", "rationale": "it is a script"}])
+        reasoner = xreason.LlmReasoner(client)
+
+        result = await reasoner.select_pack(
+            preason.PackSelectRequest(
+                prompt="write a script",
+                packs=(
+                    preason.PackSketch(id="software", description="code changes"),
+                    preason.PackSketch(id="video", description="short video scripts"),
+                ),
+            )
+        )
+
+        assert result.pack_id == "video" and result.rationale == "it is a script"
+        text = client.prompt_text()
+        assert "software: code changes" in text and "video: short video scripts" in text
+        assert client.forced == ["select_pack"]

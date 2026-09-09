@@ -1,0 +1,26 @@
+id: data-quality-59
+author: claude
+stratum: project
+prompt: >
+  Add data quality checks to the pipeline. Bad loads should be blocked before
+  they reach the marts, someone should be told, and we need a history of
+  which checks passed and failed on which day.
+fixture_repo: data_pipeline
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - id: software.deps.policy
+  - match: "which checks block the load versus warn"
+  - match: "who is alerted"
+must_not_surface:
+  - id: software.tests.expectations
+expected:
+  task_should:
+    - "add blocking and warning data quality checks with a result history"
+  constraints_should:
+    - "a failed blocking check stops the marts from updating"
+  assumptions_should_cite:
+    - "the check set and which block"
+    - "where results are recorded"
+  must_not_claim:
+    - "that a data quality framework is already installed"

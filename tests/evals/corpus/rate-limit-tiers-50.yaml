@@ -1,0 +1,22 @@
+id: rate-limit-tiers-50
+author: claude
+stratum: feature
+prompt: >
+  Add per-plan rate limits: free, pro and enterprise, each with its own
+  quota.
+fixture_repo: null
+max_questions: 4
+must_surface:
+  - match: "what happens when a quota is exceeded"
+  - match: "over what time window quotas are counted"
+must_not_surface:
+  - id: software.tests.expectations
+  - match: "how many plans exist"
+expected:
+  task_should:
+    - "enforce a quota per plan for free, pro and enterprise"
+  assumptions_should_cite:
+    - "exceed behaviour"
+    - "the counting window"
+  must_not_claim:
+    - "that the set of plans is undecided"

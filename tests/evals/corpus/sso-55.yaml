@@ -1,0 +1,26 @@
+id: sso-55
+author: claude
+stratum: project
+prompt: >
+  Add single sign-on for enterprise customers: SAML and OIDC, automatic
+  provisioning and deprovisioning, and an audit trail of logins. Existing
+  password users must keep working exactly as today.
+fixture_repo: null
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - match: "how users are provisioned and deprovisioned"
+  - match: "how an SSO user is matched to an existing account"
+must_not_surface:
+  - id: software.tests.expectations
+  - id: software.compat.breaking
+expected:
+  task_should:
+    - "add SAML and OIDC single sign-on with provisioning and login audit"
+  constraints_should:
+    - "password users are unaffected"
+  assumptions_should_cite:
+    - "provisioning"
+    - "account matching"
+  must_not_claim:
+    - "that breaking existing logins is acceptable"

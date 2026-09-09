@@ -1,4 +1,5 @@
 id: late-data-20
+author: claude
 stratum: feature
 prompt: >
   Events sometimes arrive days late. The daily active user numbers need to

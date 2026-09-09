@@ -1,4 +1,5 @@
 id: schema-migration-30
+author: claude
 stratum: project
 prompt: >
   Split the items table's free-form metadata column into typed columns. We use

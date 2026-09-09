@@ -23,8 +23,10 @@ import crux.domain.decisions as cdecis
 import crux.domain.evidence as cevid
 import crux.domain.replies as creply
 
-Operation = Literal["expand", "adjudicate", "phrase", "classify", "answer_counter", "draft"]
-"""The six things crux needs a model for, as addressable names.
+Operation = Literal[
+    "expand", "adjudicate", "phrase", "classify", "answer_counter", "draft", "select_pack"
+]
+"""The seven things crux needs a model for, as addressable names.
 
 Declared here rather than in settings because it is this port's own vocabulary.
 Routing a different model to a different operation needs a name for each, and the
@@ -360,10 +362,43 @@ class DraftResult(pydantic.BaseModel):
 # #############################################################################
 
 
+class PackSketch(pydantic.BaseModel):
+    """
+    One registered pack, as the selector sees it.
+    """
+
+    model_config = pydantic.ConfigDict(frozen=True)
+
+    id: str
+    description: str
+
+
+class PackSelectRequest(pydantic.BaseModel):
+    """
+    Which packs are registered, for a prompt that named none.
+    """
+
+    model_config = pydantic.ConfigDict(frozen=True)
+
+    prompt: str
+    packs: tuple[PackSketch, ...] = ()
+
+
+class PackSelectResult(pydantic.BaseModel):
+    """
+    The pack the model picked, and why.
+    """
+
+    model_config = pydantic.ConfigDict(frozen=True)
+
+    pack_id: str
+    rationale: str = ""
+
+
 @runtime_checkable
 class Reasoner(Protocol):
     """
-    The six things crux needs a model for.
+    The seven things crux needs a model for.
     """
 
     async def expand(self, request: ExpansionRequest) -> ExpansionResult:
@@ -417,5 +452,14 @@ class Reasoner(Protocol):
 
         :param request: The prompt and the resolved decisions.
         :return: The prose.
+        """
+        ...
+
+    async def select_pack(self, request: PackSelectRequest) -> PackSelectResult:
+        """
+        Pick the decision pack a prompt belongs to, from those registered.
+
+        :param request: The prompt and the packs to choose from.
+        :return: The choice.
         """
         ...

@@ -1,0 +1,29 @@
+id: multi-tenant-51
+author: claude
+stratum: project
+prompt: >
+  Make the API multi-tenant. Today every customer gets their own deployment
+  and it does not scale. We want one deployment, tenants fully isolated, no
+  data ever crossing between them, and existing customers migrated in without
+  downtime.
+fixture_repo: fastapi_service
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - id: software.compat.breaking
+  - match: "how tenants are isolated in the database"
+  - match: "how a request is mapped to its tenant"
+  - match: "how existing deployments are migrated in"
+must_not_surface:
+  - id: software.tests.expectations
+expected:
+  task_should:
+    - "turn the per-customer deployments into one multi-tenant API"
+  constraints_should:
+    - "no data crosses tenants"
+    - "existing customers migrate without downtime"
+  assumptions_should_cite:
+    - "the isolation model"
+    - "tenant resolution per request"
+  must_not_claim:
+    - "that the schema already has a tenant column"

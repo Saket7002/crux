@@ -1,0 +1,22 @@
+id: csv-export-38
+author: claude
+stratum: one_liner
+prompt: "add a download as CSV button to the users table"
+fixture_repo: next_dashboard
+max_questions: 3
+must_surface:
+  - match: "which columns are included"
+must_not_surface:
+  - id: software.tests.expectations
+  - id: software.compat.breaking
+must_resolve_by_retrieval:
+  - id: software.deps.policy
+  - id: software.target.files
+expected:
+  task_should:
+    - "add a CSV download of the users table"
+  assumptions_should_cite:
+    - "the columns exported"
+    - "whether the export is built client-side or served by the API"
+  must_not_claim:
+    - "that a CSV library must be added"

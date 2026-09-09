@@ -1,0 +1,27 @@
+id: offline-58
+author: claude
+stratum: project
+prompt: >
+  The dashboard must work on flaky connections. Support staff use it on site
+  where the network drops for minutes. Edits should queue and sync later, and
+  conflicts must not lose anyone's work.
+fixture_repo: next_dashboard
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - match: "how conflicting edits are resolved"
+  - match: "what is cached locally"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.deps.policy
+expected:
+  task_should:
+    - "make the dashboard usable offline with queued edits and sync"
+  constraints_should:
+    - "conflicts never discard work"
+  assumptions_should_cite:
+    - "conflict resolution"
+    - "the local cache"
+  must_not_claim:
+    - "that react-query already persists offline"

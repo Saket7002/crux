@@ -1,0 +1,26 @@
+id: gdpr-56
+author: claude
+stratum: project
+prompt: >
+  Comply with data deletion and export requests. A user asks, and within
+  thirty days every copy of their personal data across the API, the worker
+  and the warehouse is gone or handed over.
+fixture_repo: fastapi_service
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - match: "where personal data lives across the systems"
+  - match: "how deletion propagates to backups"
+  - match: "how a request is verified as genuine"
+must_not_surface:
+  - id: software.tests.expectations
+expected:
+  task_should:
+    - "implement deletion and export of a user's data across API, worker and warehouse"
+  constraints_should:
+    - "completed within thirty days"
+  assumptions_should_cite:
+    - "the inventory of personal data"
+    - "backups"
+  must_not_claim:
+    - "that a data inventory already exists"

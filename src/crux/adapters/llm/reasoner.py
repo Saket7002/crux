@@ -43,15 +43,21 @@ class LlmReasoner:
         self,
         client: pllm.LlmClient,
         routing: xroute.ModelRouting | None = None,
+        *,
+        expand_instruction: str | None = None,
     ) -> None:
         """
         :param client: Where completions come from.
         :param routing: Which model serves which operation. The default routes
             everything to the client's own model, which is what keeps every
             existing caller working unchanged.
+        :param expand_instruction: Replaces the expansion instruction. Exists
+            for the eval optimiser, which proposes candidates for that text;
+            hosts leave it unset.
         """
         self._client = client
         self._routing = routing or xroute.DEFAULT
+        self._expand_instruction = expand_instruction
 
     # ## Operations
 
@@ -69,12 +75,34 @@ class LlmReasoner:
                 existing=_render_sketches(request.existing),
                 evidence="\n".join(request.evidence_digest),
                 host_notes=request.host_notes,
+                instruction=self._expand_instruction,
             ),
             xprompt.EXPAND_TOOL,
             "expand",
         )
         proposed = _each(payload.get("decisions"), preason.ProposedDecision, "decision")
         return preason.ExpansionResult(proposed=proposed)
+
+    async def select_pack(self, request: preason.PackSelectRequest) -> preason.PackSelectResult:
+        """
+        Pick the decision pack a prompt belongs to.
+
+        :param request: The prompt and the packs to choose from.
+        :return: The choice. An id the model invented comes back as written;
+            the engine, not this adapter, decides what to do about it.
+        """
+        payload = await self._call(
+            xprompt.select_pack_messages(
+                prompt=request.prompt,
+                rendered="\n".join(f"{p.id}: {p.description}" for p in request.packs),
+            ),
+            xprompt.SELECT_PACK_TOOL,
+            "select_pack",
+        )
+        return preason.PackSelectResult(
+            pack_id=str(payload.get("pack_id", "")).strip(),
+            rationale=str(payload.get("rationale", "")),
+        )
 
     async def adjudicate(self, request: preason.AdjudicationRequest) -> preason.AdjudicationResult:
         """

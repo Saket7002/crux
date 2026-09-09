@@ -45,6 +45,10 @@ _LOG = logging.getLogger(__name__)
 _MAX_ROUTE_PASSES = 3
 
 
+DEFAULT_PACK = "software"
+"""What a session seeds from when nothing better can be chosen."""
+
+
 class Crux:
     """
     The clarification agent. Holds the ports; the sessions it returns do not.
@@ -55,7 +59,7 @@ class Crux:
         *,
         reasoner: preason.Reasoner,
         retriever: pretr.Retriever | None = None,
-        pack_ids: tuple[str, ...] = ("software",),
+        pack_ids: tuple[str, ...] | None = None,
         budget: csessn.Budget | None = None,
     ) -> None:
         """
@@ -63,7 +67,11 @@ class Crux:
         :param retriever: Where to look things up. Without one, every fact about
             the world falls through to a default or a delegation — which is a
             supported mode, not a degraded one.
-        :param pack_ids: Which decision packs to seed from.
+        :param pack_ids: Which decision packs to seed from. ``None`` lets crux
+            choose: the one registered pack when there is only one, otherwise
+            a ``select_pack`` call over the registered packs, falling back to
+            ``software``. The choice and its rationale are recorded on the
+            session so the compiled prompt can say so.
         :param budget: Caps on passes, rounds and questions. Setting
             ``max_questions_total=0`` runs crux headless: it asks nothing and
             states every open decision as an assumption.
@@ -90,7 +98,7 @@ class Crux:
         :param session_id: An id to use, where the host wants to choose it.
         :return: Questions to put to a respondent, or a finished compiled prompt.
         """
-        ctx = context or csessn.SessionContext(pack_ids=self._pack_ids)
+        ctx = context or await self._context_for(prompt)
         session = csessn.Session(
             id=session_id or str(uuid.uuid4()),
             prompt=prompt,
@@ -103,6 +111,38 @@ class Crux:
             graph = graph.add(decision)
         _LOG.info("Seeded %d decisions from packs %s", len(seeded), list(ctx.pack_ids))
         return await self._advance(session.touched(graph=graph, phase="expanding"))
+
+    async def _context_for(self, prompt: str) -> csessn.SessionContext:
+        """
+        Build a context for a host that gave none, choosing the packs.
+
+        :param prompt: What the user asked for.
+        :return: The context, with the packs and why.
+        """
+        if self._pack_ids is not None:
+            return csessn.SessionContext(pack_ids=self._pack_ids)
+        registered = kspec.registered()
+        if len(registered) <= 1:
+            return csessn.SessionContext(pack_ids=registered or (DEFAULT_PACK,))
+        sketches = tuple(
+            preason.PackSketch(id=pack_id, description=pack.description)
+            for pack_id in registered
+            if (pack := kspec.get(pack_id)) is not None
+        )
+        choice = await self._reasoner.select_pack(
+            preason.PackSelectRequest(prompt=prompt, packs=sketches)
+        )
+        if choice.pack_id in registered:
+            return csessn.SessionContext(
+                pack_ids=(choice.pack_id,), pack_rationale=choice.rationale
+            )
+        # An invented id is not a pack. Fall back rather than seed nothing,
+        # and say so where the compiled prompt's reader can see it.
+        _LOG.warning("select_pack named unknown pack %r; using %s", choice.pack_id, DEFAULT_PACK)
+        return csessn.SessionContext(
+            pack_ids=(DEFAULT_PACK,),
+            pack_rationale=f"model named unknown pack {choice.pack_id!r}; defaulted",
+        )
 
     async def resume(
         self,
