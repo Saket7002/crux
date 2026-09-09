@@ -1,4 +1,5 @@
 id: observability-09
+author: vedanshu
 stratum: project
 prompt: >
   We are flying blind in production. Add observability across the API and the

@@ -173,6 +173,7 @@ class CruxSettings(pydantic_settings.BaseSettings):
     model_classify: str | None = None
     model_answer_counter: str | None = None
     model_draft: str | None = None
+    model_select_pack: str | None = None
 
     # ## Fallback
 

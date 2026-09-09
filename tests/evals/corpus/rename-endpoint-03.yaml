@@ -1,4 +1,5 @@
 id: rename-endpoint-03
+author: vedanshu
 stratum: one_liner
 prompt: "rename the items endpoint to products"
 fixture_repo: fastapi_service

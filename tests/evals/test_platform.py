@@ -20,11 +20,16 @@ import crux.domain.session as csessn
 import crux.errors as cerrors
 import crux.ports.llm as pllm
 import tests.evals.compare as compare
+import tests.evals.downstream as downstream
 import tests.evals.harness as harness
 import tests.evals.judge as judge
+import tests.evals.models as models
 import tests.evals.optimise as optimise
 import tests.evals.platform.adapter as adapter
+import tests.evals.rescoring as rescoring
+import tests.evals.runner as runner
 import tests.evals.scorers as scorers
+import tests.evals.systems as systems
 import tests.support.llm as support_llm
 
 
@@ -64,7 +69,7 @@ class TestScorers:
         Test that a platform always sees the same five names, so an experiment
         diff compares like with like even when a case expects nothing.
         """
-        case = harness.EvalCase(id="c", prompt="p")
+        case = harness.EvalCase(author="test", id="c", prompt="p")
         scores = scorers.decompose(_score(), case)
         assert set(scores) == {"recall", "quiet", "retrieval", "within_budget", "clean"}
         assert all(0.0 <= v <= 1.0 for v in scores.values())
@@ -74,7 +79,7 @@ class TestScorers:
         Test that a case with no must_not_surface cannot have been noisy. A NaN
         here would poison the experiment mean.
         """
-        case = harness.EvalCase(id="c", prompt="p")
+        case = harness.EvalCase(author="test", id="c", prompt="p")
         assert scorers.decompose(_score(), case)["quiet"] == 1.0
 
     def test_quiet_is_the_fraction_of_expectations_kept(self) -> None:
@@ -83,6 +88,7 @@ class TestScorers:
         which is what the ratchet's precision-miss count means per case.
         """
         case = harness.EvalCase(
+            author="test",
             id="c",
             prompt="p",
             must_not_surface=(harness.Expectation(id="a"), harness.Expectation(id="b")),
@@ -115,7 +121,7 @@ class TestFeedback:
         breach and a failed rubric bullet each become exactly one line a
         reflection model can act on, and nothing else is said.
         """
-        case = harness.EvalCase(id="c", prompt="p", max_questions=2)
+        case = harness.EvalCase(author="test", id="c", prompt="p", max_questions=2)
         score = _score(
             missed=("~what gets cached",),
             should_have_been_quiet=("software.deps.policy",),
@@ -143,7 +149,7 @@ class TestFeedback:
         Test that silence is never the feedback: an empty string would read as
         a missing field on a dashboard.
         """
-        assert scorers.feedback(_score(), harness.EvalCase(id="c", prompt="p")) == (
+        assert scorers.feedback(_score(), harness.EvalCase(author="test", id="c", prompt="p")) == (
             "every expectation met"
         )
 
@@ -323,7 +329,10 @@ class TestRunExperiment:
         Test the contract a backend can rely on: dataset before experiment,
         every result before finish, and the item ids it returned handed back.
         """
-        cases = (harness.EvalCase(id="a", prompt="p"), harness.EvalCase(id="b", prompt="q"))
+        cases = (
+            harness.EvalCase(author="test", id="a", prompt="p"),
+            harness.EvalCase(author="test", id="b", prompt="q"),
+        )
         backend = await self._run(cases, judge_client=None)
         assert backend.calls == [
             "upsert_dataset",
@@ -340,11 +349,11 @@ class TestRunExperiment:
         Test that absence is absence: no rubric means no judge score, rather
         than a silent 1.0 that reads as a pass on a dashboard.
         """
-        plain = harness.EvalCase(id="a", prompt="p")
+        plain = harness.EvalCase(author="test", id="a", prompt="p")
         backend = await self._run((plain,), judge_client=support_llm.ScriptedLlm([]))
         assert "judge" not in backend.results[0].scores
 
-        with_rubric = harness.EvalCase(id="b", prompt="p", expected=_rubric())
+        with_rubric = harness.EvalCase(author="test", id="b", prompt="p", expected=_rubric())
         backend = await self._run((with_rubric,), judge_client=None)
         assert "judge" not in backend.results[0].scores
 
@@ -353,7 +362,7 @@ class TestRunExperiment:
         Test that a judged case carries its score, its rationale, and the
         traced calls crux made, which is everything a backend logs.
         """
-        case = harness.EvalCase(id="a", prompt="p", expected=_rubric())
+        case = harness.EvalCase(author="test", id="a", prompt="p", expected=_rubric())
         judge_client = support_llm.ScriptedLlm(
             [
                 {
@@ -393,7 +402,10 @@ class TestOneFailureDoesNotCostTheRun:
         ) -> coutput.CompiledPrompt | None:
             return None
 
-        cases = (harness.EvalCase(id="bad", prompt="p"), harness.EvalCase(id="good", prompt="p"))
+        cases = (
+            harness.EvalCase(author="test", id="bad", prompt="p"),
+            harness.EvalCase(author="test", id="good", prompt="p"),
+        )
         await adapter.run_experiment(
             cases,
             backend,
@@ -450,7 +462,7 @@ class TestPrintBackend:
         Test that a replay run can be eyeballed before anything is uploaded.
         """
         backend = adapter.PrintBackend()
-        case = harness.EvalCase(id="a", prompt="p")
+        case = harness.EvalCase(author="test", id="a", prompt="p")
         backend.upsert_dataset((case,))
         backend.start_experiment(_meta(), {"a": "a"})
         backend.log_result(
@@ -595,9 +607,9 @@ class TestOptimise:
 
         adapter_ = optimise.ExpandAdapter(support_llm.ScriptedLlm([]), run_case=run_case)
         good = harness.EvalCase(
-            id="good", prompt="p", must_surface=(harness.Expectation(id="nowhere"),)
+            author="test", id="good", prompt="p", must_surface=(harness.Expectation(id="nowhere"),)
         )
-        bad = harness.EvalCase(id="bad", prompt="p")
+        bad = harness.EvalCase(author="test", id="bad", prompt="p")
         good_t = await adapter_._rollout(good, "x")
         bad_t = await adapter_._rollout(bad, "x")
         assert good_t["score"] == 0.5
@@ -637,3 +649,324 @@ class TestOptimise:
         text = optimise.render("do better", 0.3, 0.5, 120)
         assert "0.30 -> 0.50" in text and "120 rollouts" in text
         assert "Not applied" in text and "do better" in text
+
+
+class TestSystems:
+    """
+    The baselines, scored by the same harness as crux.
+    """
+
+    def test_none_misses_everything_and_asks_nothing(self) -> None:
+        """
+        Test the honest floor: with the raw prompt as the output, every
+        expected decision is missed and nothing the repo answers was asked.
+        """
+        case = harness.EvalCase(
+            author="test",
+            id="c",
+            prompt="add caching",
+            must_surface=(harness.Expectation(id="software.scope.build"),),
+            must_not_surface=(harness.Expectation(id="software.deps.policy"),),
+        )
+        score = harness.score_case(case, systems.run_none(case))
+        assert score.recall == 0.0 and score.questions_asked == 0
+        assert scorers.decompose(score, case)["quiet"] == 1.0
+
+    async def test_ask3_questions_are_matched_like_decisions(self) -> None:
+        """
+        Test that a baseline question worded like an expected decision counts
+        as surfaced, and that the three questions count against the budget.
+        """
+        client = support_llm.ScriptedLlm(
+            [
+                {
+                    "questions": [
+                        {"text": "which endpoints the limit applies to"},
+                        {"text": "how callers are identified for counting"},
+                        {"text": "what colour the dashboard should be"},
+                    ]
+                }
+            ]
+        )
+        case = harness.EvalCase(
+            author="test",
+            id="c",
+            prompt="add rate limiting",
+            max_questions=3,
+            must_surface=(
+                harness.Expectation(match="which endpoints the limit applies to"),
+                harness.Expectation(match="how long entries live before expiring"),
+            ),
+        )
+        session = await systems.run_ask3(case, client)
+        score = harness.score_case(case, session)
+        assert score.recall == 0.5
+        assert score.questions_asked == 3 and not score.over_question_budget
+        assert score.llm_calls == 1
+        assert client.forced == [systems.ASK_TOOL.name]
+
+    async def test_ask3_prose_is_a_parse_error(self) -> None:
+        """
+        Test that a baseline that ignores its tool fails the case rather than
+        scoring as if it asked nothing.
+        """
+        client = support_llm.ScriptedLlm(["Sure, here are some questions."])
+        with pytest.raises(cerrors.ReasonerParseError):
+            await systems.run_ask3(harness.EvalCase(author="test", id="c", prompt="p"), client)
+
+    async def test_flat_strips_every_edge_but_keeps_the_proposals(self) -> None:
+        """
+        Test the B arm: the same proposals reach the graph, none of their
+        edges do, and every other operation passes straight through.
+        """
+        import crux.ports.reasoner as preason
+        import tests.support.reasoner as fakes
+
+        inner = fakes.FakeReasoner(
+            expansions=[
+                preason.ExpansionResult(
+                    proposed=(
+                        fakes.proposal("which delivery channel", ref="channel"),
+                        fakes.proposal(
+                            "digest cadence",
+                            edges=(
+                                preason.ProposedEdge(
+                                    kind="requires", source_id="channel", when_value="email"
+                                ),
+                            ),
+                        ),
+                    )
+                )
+            ]
+        )
+        stripped = systems.EdgeStripper(inner)
+        result = await stripped.expand(preason.ExpansionRequest(prompt="p", lens="l"))
+        assert [p.undecided for p in result.proposed] == [
+            "which delivery channel",
+            "digest cadence",
+        ]
+        assert all(p.edges == () for p in result.proposed)
+        assert stripped.adjudicate.__func__ is inner.adjudicate.__func__  # type: ignore[attr-defined]
+
+    async def test_run_system_rejects_an_unknown_name(self) -> None:
+        """
+        Test that a typo in --system fails loudly rather than silently scoring crux.
+        """
+        with pytest.raises(cerrors.ConfigurationError):
+            await systems.run_system(
+                "typo",  # type: ignore[arg-type]
+                harness.EvalCase(author="test", id="c", prompt="p"),
+                support_llm.ScriptedLlm([]),
+            )
+
+
+class TestPerModel:
+    """
+    Recordings and results that never collide across models.
+    """
+
+    def test_cassette_name_carries_the_model(self) -> None:
+        """
+        Test that two models get two cassettes, and the name is safe on disk.
+        """
+        name = runner.cassette_name("recall", "cohere_chat/command-a-03-2025")
+        assert name == "recall-cohere-chat-command-a-03-2025"
+        assert "/" not in name
+        assert runner.cassette_name("recall", "claude-sonnet-5") != name
+
+    def test_the_models_table_ranks_and_counts_leads(self) -> None:
+        """
+        Test that the summary orders models by recall, shows ask rate per
+        stratum, and counts case-level leads over the weakest model rather
+        than only reporting means.
+        """
+        strong = _run("s", {"a": {"recall": 1.0}, "b": {"recall": 0.5}})
+        weak = _run("w", {"a": {"recall": 0.0}, "b": {"recall": 0.5}})
+        strong = strong.model_copy(update={"model": "strong"})
+        weak = weak.model_copy(update={"model": "weak"})
+        text = models.render([weak, strong])
+        lines = text.splitlines()
+        assert lines[2].startswith("strong") and lines[3].startswith("weak")
+        assert "leads over weak" in text
+        assert "recall 1/0/1" in text
+
+
+class TestRescoring:
+    """
+    Bounding matcher error by hand.
+    """
+
+    def _run(self) -> compare.RunResults:
+        import datetime as dt
+
+        return compare.RunResults(
+            experiment="e",
+            model="m",
+            git_sha="abc",
+            cassette_mode="replay",
+            recorded_at=dt.datetime.now(tz=dt.UTC),
+            rows=(
+                compare.CaseRow(
+                    case_id="sigterm-11",
+                    stratum="one_liner",
+                    scores={"recall": 0.0},
+                    metrics={},
+                    expected=1,
+                    missed=("~how long in-flight jobs get to finish",),
+                    surfaced=(
+                        "timeout duration for graceful shutdown",
+                        "cleanup tasks during shutdown",
+                        "logging level during shutdown",
+                        "in-flight jobs and how long they get to finish",
+                    ),
+                ),
+                compare.CaseRow(
+                    case_id="clean",
+                    stratum="feature",
+                    scores={"recall": 1.0},
+                    metrics={},
+                    expected=2,
+                ),
+            ),
+        )
+
+    def test_misses_show_the_nearest_surfaced_decisions_by_overlap(self) -> None:
+        """
+        Test that the person sees the likeliest paraphrase first, so marking
+        is a glance rather than a search through twenty decisions.
+        """
+        (miss,) = rescoring.misses(self._run())
+        assert miss.case_id == "sigterm-11"
+        assert miss.nearest[0][0] == "in-flight jobs and how long they get to finish"
+        assert len(miss.nearest) == rescoring.NEAREST
+
+    def test_a_covered_mark_raises_recall_and_a_null_does_not(self, tmp_path: pathlib.Path) -> None:
+        """
+        Test the arithmetic through the file a person edits: one miss marked
+        covered turns a 0.0 case into 1.0 and moves the mean by exactly that
+        case's share.
+        """
+        run = self._run()
+        path = tmp_path / "misses.yaml"
+        path.write_text(rescoring.template(rescoring.misses(run)), encoding="utf-8")
+        assert rescoring.corrected(run, rescoring.load_rescores(path))[1:] == (0.5, 0.5)
+        path.write_text(
+            path.read_text().replace("covered_by: null", "covered_by: in-flight jobs"),
+            encoding="utf-8",
+        )
+        per_case, auto_mean, fixed_mean = rescoring.corrected(run, rescoring.load_rescores(path))
+        assert per_case["sigterm-11"] == (0.0, 1.0)
+        assert (auto_mean, fixed_mean) == (0.5, 1.0)
+        assert "1 hand-covered" in rescoring.render_corrected(run, rescoring.load_rescores(path))
+
+
+class TestDownstream:
+    """
+    The raw-versus-compiled harness, with a scripted agent and a scripted judge.
+    """
+
+    def test_the_diff_covers_added_changed_and_removed_files(self, tmp_path: pathlib.Path) -> None:
+        """
+        Test that the judge sees every kind of change, not only edits.
+        """
+        before = {"a.py": "x = 1\n", "gone.py": "y\n"}
+        after = {"a.py": "x = 2\n", "new.py": "z\n"}
+        diff = downstream.unified_diff(before, after)
+        assert "-x = 1" in diff and "+x = 2" in diff
+        assert "b/new.py" in diff and "a/gone.py" in diff
+
+    def test_the_rubric_adds_the_files_retrieval_named(self) -> None:
+        """
+        Test that a diff touching the file crux said to read is rewarded, and
+        that assumption bullets are rephrased as choices a diff can show.
+        """
+        case = harness.EvalCase(
+            author="test",
+            id="c",
+            prompt="p",
+            expected=harness.Rubric(assumptions_should_cite=("how callers are identified",)),
+        )
+        compiled = coutput.CompiledPrompt(
+            task="t", context=(coutput.Citation(locator="app/routes.py"),)
+        )
+        rubric = downstream.diff_rubric(case, compiled)
+        assert "changes or reads app/routes.py" in rubric.constraints_should
+        assert rubric.assumptions_should_cite == (
+            "states the choice made about how callers are identified",
+        )
+
+    async def test_a_pair_runs_both_prompts_in_separate_sandboxes(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Test the harness end to end with fakes: the agent sees the raw prompt
+        then the compiled one, each in its own copy of the fixture, and both
+        diffs are judged.
+        """
+        fixture = tmp_path / "fixtures" / "tiny"
+        fixture.mkdir(parents=True)
+        (fixture / "app.py").write_text("print('hi')\n", encoding="utf-8")
+        monkeypatch.setattr(harness, "FIXTURES", tmp_path / "fixtures")
+        case = harness.EvalCase(author="test", id="c", prompt="add logging", fixture_repo="tiny")
+
+        async def run_case(*args: object, **kwargs: object) -> csessn.Session:
+            return csessn.Session(
+                id="c", prompt="add logging", outcome=coutput.CompiledPrompt(task="Add logging")
+            )
+
+        monkeypatch.setattr(runner, "run_case", run_case)
+        agent = downstream.ScriptedAgent()
+        judge_client = support_llm.ScriptedLlm(
+            [
+                {
+                    "verdicts": [{"section": "task_should", "bullet": "a", "met": False}],
+                    "rationale": "",
+                },
+                {
+                    "verdicts": [{"section": "task_should", "bullet": "a", "met": True}],
+                    "rationale": "",
+                },
+            ]
+        )
+
+        result = await downstream.run_pair(
+            case,
+            support_llm.ScriptedLlm([]),
+            judge_client,
+            agent,
+            sandbox_root=tmp_path / "sandbox",
+        )
+
+        assert agent.prompts == ["add logging", "# Task\nAdd logging\n"]
+        assert (tmp_path / "sandbox" / "c" / "raw" / "CHANGES.md").exists()
+        assert (tmp_path / "sandbox" / "c" / "compiled" / "app.py").exists()
+        assert (result.raw_score, result.compiled_score) == (0.0, 1.0)
+        assert "b/CHANGES.md" in result.compiled_diff
+
+    def test_render_reports_leads_not_only_means(self) -> None:
+        """
+        Test the summary counts cases compiled leads on, which is the number
+        that survives a corpus change.
+        """
+        pairs = [
+            downstream.PairResult(
+                case_id="a",
+                stratum="feature",
+                raw_score=0.2,
+                compiled_score=0.8,
+                assumptions_made_explicit=3,
+                raw_diff="",
+                compiled_diff="",
+            ),
+            downstream.PairResult(
+                case_id="b",
+                stratum="feature",
+                raw_score=0.5,
+                compiled_score=0.5,
+                assumptions_made_explicit=1,
+                raw_diff="",
+                compiled_diff="",
+            ),
+        ]
+        text = downstream.render(pairs)
+        assert "compiled leads 1, trails 0, ties 1" in text

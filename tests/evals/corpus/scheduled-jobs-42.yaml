@@ -1,0 +1,24 @@
+id: scheduled-jobs-42
+author: claude
+stratum: feature
+prompt: >
+  Let customers schedule a job to run at a specific time, including recurring
+  schedules.
+fixture_repo: go_worker
+max_questions: 4
+must_surface:
+  - id: software.scope.build
+  - match: "how a missed schedule is handled when the worker was down"
+  - match: "which timezone schedules are interpreted in"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "add one-off and recurring scheduling to the worker"
+  assumptions_should_cite:
+    - "missed-run behaviour"
+    - "timezone handling"
+  must_not_claim:
+    - "that the worker already has a scheduler"

@@ -23,6 +23,7 @@ ALL_OPERATIONS: tuple[preason.Operation, ...] = (
     "classify",
     "answer_counter",
     "draft",
+    "select_pack",
 )
 
 

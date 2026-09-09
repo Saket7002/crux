@@ -29,7 +29,6 @@ import asyncio
 import dataclasses
 import json
 import pathlib
-from typing import Any
 
 import crux.application.engine as aengine
 import crux.application.expansion as aexpand
@@ -42,6 +41,7 @@ import crux.ports.llm as pllm
 import crux.ports.reasoner as preason
 import tests.evals.harness as harness
 import tests.evals.runner as runner
+import tests.evals.systems as systems
 
 # A pass yielding less than this is not finding anything new worth paying for.
 K_STAR_RATIO = 0.1
@@ -179,28 +179,6 @@ class CaseMeasurement:
         return firing_density(self.edge_stats)
 
 
-class _EdgeStripper:
-    """
-    A reasoner that answers normally but removes every conditional edge.
-
-    The flat arm of the A/B. Comparing crux to itself with the edges taken out is
-    the only way to see what the graph actually buys, as opposed to what it
-    plausibly might.
-    """
-
-    def __init__(self, inner: preason.Reasoner) -> None:
-        self._inner = inner
-
-    async def expand(self, request: preason.ExpansionRequest) -> preason.ExpansionResult:
-        result = await self._inner.expand(request)
-        return preason.ExpansionResult(
-            proposed=tuple(p.model_copy(update={"edges": ()}) for p in result.proposed)
-        )
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self._inner, name)
-
-
 async def _expansion_curve(
     case: harness.EvalCase,
     reasoner: preason.Reasoner,
@@ -334,7 +312,7 @@ async def _run_flat(case: harness.EvalCase, client: pllm.LlmClient) -> csessn.Se
     import crux.adapters.retrieval.fs as xfsretr
 
     crux = aengine.Crux(
-        reasoner=_EdgeStripper(xreason.LlmReasoner(client)),
+        reasoner=systems.EdgeStripper(xreason.LlmReasoner(client)),
         retriever=xfsretr.FilesystemRetriever(case.root) if case.root else None,
         budget=csessn.Budget(max_questions_total=case.max_questions),
     )

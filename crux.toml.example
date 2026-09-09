@@ -20,7 +20,7 @@ mechanical = "groq/openai/gpt-oss-20b"
 
 [operations]
 # The escape hatch. Any of: expand, adjudicate, phrase, classify,
-# answer_counter, draft. Rarely needed; the tiers are the intended interface.
+# answer_counter, draft, select_pack. Rarely needed; the tiers are the intended interface.
 # adjudicate = "anthropic/claude-opus-5"
 
 [fallback]

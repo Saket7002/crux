@@ -1,0 +1,26 @@
+id: plugin-60
+author: claude
+stratum: project
+prompt: >
+  Let third parties extend the product with plugins. They must not be able to
+  break or read anything they were not granted, plugins must keep working as
+  we ship new versions, and there will be a marketplace later.
+fixture_repo: null
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - match: "how plugins are sandboxed"
+  - match: "how the plugin API is versioned"
+  - match: "how plugins are reviewed before publishing"
+must_not_surface:
+  - id: software.tests.expectations
+expected:
+  task_should:
+    - "add a sandboxed, versioned plugin system"
+  constraints_should:
+    - "a plugin cannot access what it was not granted"
+  assumptions_should_cite:
+    - "the sandbox model"
+    - "API versioning"
+  must_not_claim:
+    - "any fact about the codebase, because no repository was available"

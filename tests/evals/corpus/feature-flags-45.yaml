@@ -1,0 +1,24 @@
+id: feature-flags-45
+author: claude
+stratum: feature
+prompt: >
+  Add feature flags so we can roll a change out to a percentage of users and
+  turn it off fast if it goes wrong.
+fixture_repo: null
+max_questions: 4
+must_surface:
+  - id: software.scope.build
+  - match: "where flag state is stored"
+  - match: "how a user is assigned to a percentage bucket"
+must_not_surface:
+  - id: software.tests.expectations
+expected:
+  task_should:
+    - "add percentage-based feature flags with a kill switch"
+  constraints_should:
+    - "a flag can be turned off without a deploy"
+  assumptions_should_cite:
+    - "flag storage"
+    - "bucket assignment"
+  must_not_claim:
+    - "any fact about the codebase, because no repository was available"

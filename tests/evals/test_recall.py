@@ -4,7 +4,8 @@ Decision recall against a real model.
 Marked ``live`` and excluded from CI. These are measurements, not correctness
 tests: they move when a prompt changes, which is exactly what they are for.
 
-Run them with a recorded cassette (free, deterministic):
+Cassettes are per model: ``cassettes/recall-<model>.json``. Run them with a
+recorded cassette (free, deterministic):
 
     uv run pytest tests/evals -m live
 

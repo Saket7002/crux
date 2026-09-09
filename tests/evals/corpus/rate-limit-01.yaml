@@ -1,4 +1,5 @@
 id: rate-limit-01
+author: vedanshu
 stratum: one_liner
 prompt: "add rate limiting to the API"
 fixture_repo: fastapi_service

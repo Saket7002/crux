@@ -1,4 +1,5 @@
 id: rbac-19
+author: claude
 stratum: feature
 prompt: >
   Add roles to the dashboard. Some people should only be able to view, others

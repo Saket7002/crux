@@ -1,4 +1,5 @@
 id: sigterm-11
+author: claude
 stratum: one_liner
 prompt: "make the worker shut down gracefully on SIGTERM"
 fixture_repo: go_worker

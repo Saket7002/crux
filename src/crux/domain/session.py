@@ -209,6 +209,8 @@ class SessionContext(pydantic.BaseModel):
 
     root: pathlib.Path | None = None
     pack_ids: tuple[str, ...] = ("software",)
+    pack_rationale: str = ""
+    """Why these packs, when the engine chose them rather than the host."""
     downstream_agent: str = ""
     host_notes: str = ""
 

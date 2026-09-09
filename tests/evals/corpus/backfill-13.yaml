@@ -1,4 +1,5 @@
 id: backfill-13
+author: claude
 stratum: one_liner
 prompt: "backfill last month's events"
 fixture_repo: data_pipeline

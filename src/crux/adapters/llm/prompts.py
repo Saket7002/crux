@@ -566,3 +566,40 @@ def tool_of(schema: pllm.ToolSchema) -> dict[str, Any]:
             "parameters": schema.parameters,
         },
     }
+
+
+# #############################################################################
+# Pack selection
+# #############################################################################
+
+SELECT_PACK_TOOL: Final = pllm.ToolSchema(
+    name="select_pack",
+    description="Name the decision pack this request belongs to.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "pack_id": {"type": "string", "description": "One of the listed pack ids, exactly."},
+            "rationale": {"type": "string"},
+        },
+        "required": ["pack_id"],
+    },
+)
+
+
+def select_pack_messages(*, prompt: str, rendered: str) -> tuple[pllm.Message, ...]:
+    """
+    Build the pack-selection conversation.
+
+    :param prompt: What the user asked for.
+    :param rendered: The registered packs, one per line as ``id: description``.
+    :return: The messages.
+    """
+    system = (
+        "A request belongs to one domain, and each domain has a pack of the decisions "
+        "that recur in it. Pick the pack whose domain the request is about. Answer with "
+        "one of the listed ids exactly; do not invent one."
+    )
+    return (
+        pllm.Message(role="system", content=system),
+        pllm.Message(role="user", content=f"Request:\n{prompt}\n\nPacks:\n{rendered}"),
+    )

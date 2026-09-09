@@ -1,0 +1,21 @@
+id: cors-31
+author: claude
+stratum: one_liner
+prompt: "add CORS support for the web app"
+fixture_repo: fastapi_service
+max_questions: 3
+must_surface:
+  - match: "which origins are allowed"
+must_not_surface:
+  - id: software.tests.expectations
+  - id: software.deps.policy
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "enable CORS on the existing FastAPI app"
+  assumptions_should_cite:
+    - "the allowed origins"
+    - "whether credentials are allowed cross-origin"
+  must_not_claim:
+    - "that a new dependency is needed for CORS"

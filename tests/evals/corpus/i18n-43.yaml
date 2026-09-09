@@ -1,0 +1,26 @@
+id: i18n-43
+author: claude
+stratum: feature
+prompt: >
+  Translate the dashboard. Start with German and Japanese; more languages
+  will follow.
+fixture_repo: next_dashboard
+max_questions: 4
+must_surface:
+  - id: software.deps.policy
+  - match: "how translations are stored and loaded"
+  - match: "how dates and numbers are formatted per locale"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "internationalise the Next.js dashboard, starting with de and ja"
+  constraints_should:
+    - "adding a language later is cheap"
+  assumptions_should_cite:
+    - "where translations live"
+    - "whether an i18n library is added"
+  must_not_claim:
+    - "that the dashboard already has locale routing"

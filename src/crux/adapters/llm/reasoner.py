@@ -83,6 +83,27 @@ class LlmReasoner:
         proposed = _each(payload.get("decisions"), preason.ProposedDecision, "decision")
         return preason.ExpansionResult(proposed=proposed)
 
+    async def select_pack(self, request: preason.PackSelectRequest) -> preason.PackSelectResult:
+        """
+        Pick the decision pack a prompt belongs to.
+
+        :param request: The prompt and the packs to choose from.
+        :return: The choice. An id the model invented comes back as written;
+            the engine, not this adapter, decides what to do about it.
+        """
+        payload = await self._call(
+            xprompt.select_pack_messages(
+                prompt=request.prompt,
+                rendered="\n".join(f"{p.id}: {p.description}" for p in request.packs),
+            ),
+            xprompt.SELECT_PACK_TOOL,
+            "select_pack",
+        )
+        return preason.PackSelectResult(
+            pack_id=str(payload.get("pack_id", "")).strip(),
+            rationale=str(payload.get("rationale", "")),
+        )
+
     async def adjudicate(self, request: preason.AdjudicationRequest) -> preason.AdjudicationResult:
         """
         Turn evidence items into distinct candidate answers.

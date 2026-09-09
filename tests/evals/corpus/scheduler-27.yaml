@@ -1,4 +1,5 @@
 id: scheduler-27
+author: claude
 stratum: project
 prompt: >
   Replace Airflow. It is the only thing we run on that box, upgrades are

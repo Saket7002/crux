@@ -1,0 +1,26 @@
+id: search-41
+author: claude
+stratum: feature
+prompt: >
+  Add search over items. People want to find things by name and by tag, and
+  it needs to feel instant.
+fixture_repo: fastapi_service
+max_questions: 4
+must_surface:
+  - id: software.scope.build
+  - match: "whether search uses the database or a dedicated search engine"
+  - match: "how results are ranked"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.deps.policy
+expected:
+  task_should:
+    - "add item search by name and tag to the API"
+  constraints_should:
+    - "results return fast enough to feel instant"
+  assumptions_should_cite:
+    - "database search versus a search engine"
+    - "ranking"
+  must_not_claim:
+    - "that items already have tags in the schema"

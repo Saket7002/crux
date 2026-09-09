@@ -1,4 +1,5 @@
 id: webhooks-18
+author: claude
 stratum: feature
 prompt: >
   Deliver a webhook to the customer's URL when a job finishes. Customer

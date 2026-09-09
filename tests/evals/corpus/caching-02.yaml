@@ -1,4 +1,5 @@
 id: caching-02
+author: vedanshu
 stratum: one_liner
 prompt: "add caching"
 fixture_repo: fastapi_service

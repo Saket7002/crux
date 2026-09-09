@@ -1,0 +1,20 @@
+id: loading-state-33
+author: claude
+stratum: one_liner
+prompt: "add a loading state to the tables"
+fixture_repo: next_dashboard
+max_questions: 3
+must_surface:
+  - match: "whether a skeleton or a spinner is shown"
+must_not_surface:
+  - id: software.tests.expectations
+  - id: software.compat.breaking
+must_resolve_by_retrieval:
+  - id: software.deps.policy
+expected:
+  task_should:
+    - "show a loading state while table data is fetched via react-query"
+  assumptions_should_cite:
+    - "skeleton versus spinner"
+  must_not_claim:
+    - "that a new UI library is needed"

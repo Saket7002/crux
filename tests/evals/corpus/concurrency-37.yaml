@@ -1,0 +1,22 @@
+id: concurrency-37
+author: claude
+stratum: one_liner
+prompt: "process jobs concurrently"
+fixture_repo: go_worker
+max_questions: 3
+must_surface:
+  - match: "how many jobs run at once"
+  - match: "whether jobs for the same key must stay ordered"
+must_not_surface:
+  - id: software.tests.expectations
+  - id: software.deps.policy
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "run multiple jobs at once in the Go worker"
+  assumptions_should_cite:
+    - "the concurrency limit"
+    - "ordering guarantees per key"
+  must_not_claim:
+    - "that a worker pool already exists"

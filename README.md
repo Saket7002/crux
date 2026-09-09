@@ -145,18 +145,23 @@ touches your environment. Set the variables yourself, or pass a `CruxSettings`.
 
 ## Different models for different jobs
 
-Two tiers, because the six things crux asks a model to do are not equally hard.
+Two tiers, because the seven things crux asks a model to do are not equally hard.
 
 | Tier | Operations | Why |
 |---|---|---|
 | `CRUX_MODEL` | expand, adjudicate | Open-ended judgement. Naming what is undecided, and deciding what retrieved code actually settles. Where a weak model visibly fails. |
-| `CRUX_WEAK_MODEL` | phrase, classify, answer_counter, draft | Bounded transformations over material already supplied. Defaults to the reasoning model, so one variable still works. |
+| `CRUX_WEAK_MODEL` | phrase, classify, answer_counter, draft, select_pack | Bounded transformations over material already supplied. Defaults to the reasoning model, so one variable still works. |
 
 ```bash
 export CRUX_MODEL=anthropic/claude-sonnet-5
 export CRUX_WEAK_MODEL=groq/openai/gpt-oss-20b
 export CRUX_FALLBACK_MODELS=gemini/gemini-3.6-flash,cohere_chat/command-a-03-2025
 ```
+
+Pack selection is the seventh operation, and it is only made when a host names no
+pack and more than one is registered: one call picks the domain pack from the
+prompt, and the session records the choice and why. With one pack registered,
+which is the case today, nothing is asked.
 
 Drafting sits in the cheap tier deliberately: the compiled prompt's substance
 comes from the decision records, and its assumptions block is derived by code
@@ -245,13 +250,18 @@ uv run python -m tests.evals.platform --backend opik --record     # re-record, t
 uv run python -m tests.evals.platform --baseline tests/evals/results/base.json   # case-by-case diff
 
 uv run python -m tests.evals.optimise --budget 300    # evolve the expand instruction (real model)
+
+uv run python -m tests.evals.platform --model claude-sonnet-5 --record   # a second model, own cassette
+uv run python -m tests.evals.models                                     # one table across models
+
+uv run python -m tests.evals.downstream --agent-command 'claude -p "$(cat {prompt})"' --record
 ```
 
 **Recall evals** score whether crux surfaced the decisions a person said mattered
 and stayed quiet about the ones the repo already answers. Matching is canonical id
 or token overlap, with no LLM judge, because a judge makes the harness itself
 flaky. Assertions are on the aggregate, never per case, and ask rate per prompt
-size has an alarm band. The corpus is thirty cases, ten per prompt size, over four
+size has an alarm band. The corpus is sixty cases, twenty per prompt size, over four
 synthetic fixture repos and a handful of cases with no repo at all.
 
 **Eval platforms** add what the harness deliberately lacks: run history, a diff
@@ -278,6 +288,13 @@ Two runs are compared **case by case**, not only on the mean: `--baseline` says,
 per score, how many cases the new run leads and trails, and names every case
 that regressed. A prompt that fixes the project briefs and breaks one one-liner
 is flat on the mean and visible here.
+
+**The downstream measurement** is the claim itself: for every case with a
+fixture, a coding agent runs twice in sandbox copies, once on the raw prompt and
+once on the prompt crux compiled headless, and both diffs are judged against a
+rubric built from the case. `tests.evals.downstream` reports both scores per
+case and how many cases compiled leads on. A scripted agent keeps the harness
+testable; any agent with a command line plugs in.
 
 **Prompt optimisation** follows GEPA (arXiv 2507.19457): `tests.evals.optimise`
 evolves the expansion instruction alone, using recall and quiet as the objective

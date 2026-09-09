@@ -1,4 +1,5 @@
 id: json-logs-14
+author: claude
 stratum: one_liner
 prompt: "switch the worker's logging to JSON"
 fixture_repo: go_worker

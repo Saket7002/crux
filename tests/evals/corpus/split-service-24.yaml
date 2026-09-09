@@ -1,4 +1,5 @@
 id: split-service-24
+author: claude
 stratum: project
 prompt: >
   Split the API into services. Items, auth and billing have different teams

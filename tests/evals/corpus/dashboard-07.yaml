@@ -1,4 +1,5 @@
 id: dashboard-07
+author: vedanshu
 stratum: project
 prompt: >
   Build an admin dashboard for the platform. Admins need to see who is signed

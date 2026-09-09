@@ -1,4 +1,5 @@
 id: migration-08
+author: vedanshu
 stratum: project
 prompt: >
   Move us off the single Postgres instance. Reads are slow at peak and one bad

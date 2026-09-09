@@ -1,4 +1,5 @@
 id: dedupe-16
+author: claude
 stratum: one_liner
 prompt: "dedupe events"
 fixture_repo: null

@@ -1,4 +1,5 @@
 id: health-endpoint-15
+author: claude
 stratum: one_liner
 prompt: "add a /health endpoint that returns 200 without a bearer token"
 fixture_repo: fastapi_service
