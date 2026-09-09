@@ -31,6 +31,7 @@ import crux.application.stopping as astop
 import crux.domain.decisions as cdecis
 import crux.domain.evidence as cevid
 import crux.domain.graph as cgraph
+import crux.domain.ids as cids
 import crux.domain.replies as creply
 import crux.domain.session as csessn
 import crux.packs.base as kspec
@@ -61,6 +62,9 @@ class Crux:
         retriever: pretr.Retriever | None = None,
         pack_ids: tuple[str, ...] | None = None,
         budget: csessn.Budget | None = None,
+        duplicate_threshold: float | None = None,
+        sibling_threshold: float | None = None,
+        saturation_ratio: float | None = None,
     ) -> None:
         """
         :param reasoner: The model boundary. The only thing crux cannot run without.
@@ -80,6 +84,15 @@ class Crux:
         self._retriever = retriever
         self._pack_ids = pack_ids
         self._budget = budget or csessn.Budget()
+        self._duplicate_threshold = (
+            cids.DUPLICATE_THRESHOLD if duplicate_threshold is None else duplicate_threshold
+        )
+        self._sibling_threshold = (
+            cids.SIBLING_THRESHOLD if sibling_threshold is None else sibling_threshold
+        )
+        self._saturation_ratio = (
+            csessn.SATURATION_RATIO if saturation_ratio is None else saturation_ratio
+        )
 
     # ## Public surface
 
@@ -220,7 +233,10 @@ class Crux:
         :return: The session with a bigger graph and a longer pass log.
         """
         session = session.touched(phase="expanding")
-        while astop.should_expand(session):
+        while astop.should_expand(
+            session,
+            saturation_ratio=self._saturation_ratio,
+        ):
             session = await self._expand_once(session, saw_evidence=False)
         return session
 
@@ -249,6 +265,8 @@ class Crux:
             pass_index=index,
             pack_ids=session.context.pack_ids,
             saw_evidence=saw_evidence,
+            duplicate_threshold=self._duplicate_threshold,
+            sibling_threshold=self._sibling_threshold,
         )
         return self._spend(
             session.touched(graph=graph, passes=session.passes.with_record(record)),

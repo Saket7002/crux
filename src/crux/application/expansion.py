@@ -80,6 +80,8 @@ def absorb(
     pass_index: int,
     pack_ids: tuple[str, ...],
     saw_evidence: bool = False,
+    duplicate_threshold: float = cids.DUPLICATE_THRESHOLD,
+    sibling_threshold: float = cids.SIBLING_THRESHOLD,
 ) -> tuple[cgraph.DecisionGraph, csessn.PassRecord]:
     """
     Fold an expansion pass into the graph.
@@ -109,7 +111,12 @@ def absorb(
     survivors: list[tuple[int, preason.ProposedDecision, str]] = []
     refs: dict[str, str] = {}
     for position, proposal in enumerate(result.proposed):
-        duplicate = _duplicate_of(proposal.undecided, existing, aliases)
+        duplicate = _duplicate_of(
+            proposal.undecided,
+            existing,
+            aliases,
+            threshold=duplicate_threshold,
+        )
         if duplicate is None and proposal.ref in graph.nodes:
             # A ref is the model's own name for a proposal. When that name is
             # an existing decision's id, the model is saying "this is that
@@ -141,6 +148,7 @@ def absorb(
             sibling_text=sibling_text,
             refs=refs,
             known=tuple(existing),
+            sibling_threshold=sibling_threshold,
         )
         graph = graph.add(decision)
         added += 1
@@ -161,11 +169,10 @@ def absorb(
     )
     return graph, record
 
-
 def _duplicate_of(
     undecided: str,
     existing: dict[str, str],
-    aliases: dict[str, tuple[str, ...]] | None = None,
+
 ) -> str | None:
     """
     Find an existing decision that says the same thing.
@@ -185,7 +192,7 @@ def _duplicate_of(
     proposed = cids.tokens(undecided)
     pack_aliases = aliases or {}
     for decision_id, text in existing.items():
-        if cids.is_duplicate(undecided, text):
+        if cids.is_duplicate(undecided, text, threshold=threshold):
             return decision_id
         if decision_id not in pack_aliases:
             continue
@@ -208,6 +215,7 @@ def _to_decision(
     sibling_text: dict[str, str],
     refs: dict[str, str],
     known: tuple[str, ...],
+    sibling_threshold: float = cids.SIBLING_THRESHOLD,
 ) -> cdecis.OpenDecision:
     """
     Build an open decision from one proposal.
@@ -223,7 +231,11 @@ def _to_decision(
     :param known: Every id currently in play, for repairing a mistyped one.
     :return: The decision.
     """
-    sibling_id = cids.closest(proposal.undecided, sibling_text)
+    sibling_id = cids.closest(
+        proposal.undecided,
+        sibling_text,
+        threshold=sibling_threshold,
+    )
     sibling = specs.get(sibling_id) if sibling_id is not None else None
     if sibling is not None:
         cost, reversibility = sibling.cost_if_wrong, sibling.reversibility

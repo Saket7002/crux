@@ -158,6 +158,9 @@ async def run_case(
     answer: bool = False,
     expand_instruction: str | None = None,
     wrap: ReasonerWrap | None = None,
+    duplicate_threshold: float | None = None,
+    sibling_threshold: float | None = None,
+    saturation_ratio: float | None = None,
 ) -> csessn.Session:
     """
     Run one case to completion.
@@ -166,7 +169,7 @@ async def run_case(
     :param client: Where completions come from.
     :param budget: Caps to run under.
     :param answer: Whether to answer the questions with a scripted respondent.
-        Recall scoring leaves them unanswered — it measures which decisions crux
+        Recall scoring leaves them unanswered â€” it measures which decisions crux
         *surfaced*, and answering would change what later passes expand. The
         saturation experiment must answer, because unanswered decisions never
         resolve to a value and so no edge can ever fire.
@@ -175,7 +178,15 @@ async def run_case(
     :return: The finished session.
     """
     crux = build_engine(
-        case, client, budget=budget, expand_instruction=expand_instruction, wrap=wrap
+        case,
+        client,
+        budget=budget,
+        expand_instruction=expand_instruction,
+        wrap=wrap,
+        duplicate_threshold=duplicate_threshold,
+        sibling_threshold=sibling_threshold,
+        saturation_ratio=saturation_ratio,
+    )
     )
     step = await crux.start(
         case.prompt,

@@ -23,14 +23,25 @@ import crux.domain.graph as cgraph
 import crux.domain.session as csessn
 
 
-def should_expand(session: csessn.Session) -> bool:
+def should_expand(
+    session: csessn.Session,
+    *,
+    saturation_ratio: float = csessn.SATURATION_RATIO,
+) -> bool:
     """
     Say whether another expansion pass is worth its tokens.
 
     :param session: The session so far.
+    :param saturation_ratio: New-decision ratio below which expansion is saturated.
     :return: Whether expansion has neither saturated nor run out of passes.
     """
-    return session.may_expand
+    if session.passes.count >= session.budget.max_passes:
+        return False
+
+    if session.passes.dirty or not session.passes.records:
+        return True
+
+    return session.passes.records[-1].ratio >= saturation_ratio
 
 
 def should_ask(session: csessn.Session) -> bool:
