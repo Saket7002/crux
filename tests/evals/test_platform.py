@@ -20,6 +20,7 @@ import crux.domain.session as csessn
 import crux.errors as cerrors
 import crux.ports.llm as pllm
 import tests.evals.compare as compare
+import tests.evals.downstream as downstream
 import tests.evals.harness as harness
 import tests.evals.judge as judge
 import tests.evals.models as models
@@ -857,3 +858,115 @@ class TestRescoring:
         assert per_case["sigterm-11"] == (0.0, 1.0)
         assert (auto_mean, fixed_mean) == (0.5, 1.0)
         assert "1 hand-covered" in rescoring.render_corrected(run, rescoring.load_rescores(path))
+
+
+class TestDownstream:
+    """
+    The raw-versus-compiled harness, with a scripted agent and a scripted judge.
+    """
+
+    def test_the_diff_covers_added_changed_and_removed_files(self, tmp_path: pathlib.Path) -> None:
+        """
+        Test that the judge sees every kind of change, not only edits.
+        """
+        before = {"a.py": "x = 1\n", "gone.py": "y\n"}
+        after = {"a.py": "x = 2\n", "new.py": "z\n"}
+        diff = downstream.unified_diff(before, after)
+        assert "-x = 1" in diff and "+x = 2" in diff
+        assert "b/new.py" in diff and "a/gone.py" in diff
+
+    def test_the_rubric_adds_the_files_retrieval_named(self) -> None:
+        """
+        Test that a diff touching the file crux said to read is rewarded, and
+        that assumption bullets are rephrased as choices a diff can show.
+        """
+        case = harness.EvalCase(
+            author="test",
+            id="c",
+            prompt="p",
+            expected=harness.Rubric(assumptions_should_cite=("how callers are identified",)),
+        )
+        compiled = coutput.CompiledPrompt(
+            task="t", context=(coutput.Citation(locator="app/routes.py"),)
+        )
+        rubric = downstream.diff_rubric(case, compiled)
+        assert "changes or reads app/routes.py" in rubric.constraints_should
+        assert rubric.assumptions_should_cite == (
+            "states the choice made about how callers are identified",
+        )
+
+    async def test_a_pair_runs_both_prompts_in_separate_sandboxes(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Test the harness end to end with fakes: the agent sees the raw prompt
+        then the compiled one, each in its own copy of the fixture, and both
+        diffs are judged.
+        """
+        fixture = tmp_path / "fixtures" / "tiny"
+        fixture.mkdir(parents=True)
+        (fixture / "app.py").write_text("print('hi')\n", encoding="utf-8")
+        monkeypatch.setattr(harness, "FIXTURES", tmp_path / "fixtures")
+        case = harness.EvalCase(author="test", id="c", prompt="add logging", fixture_repo="tiny")
+
+        async def run_case(*args: object, **kwargs: object) -> csessn.Session:
+            return csessn.Session(
+                id="c", prompt="add logging", outcome=coutput.CompiledPrompt(task="Add logging")
+            )
+
+        monkeypatch.setattr(runner, "run_case", run_case)
+        agent = downstream.ScriptedAgent()
+        judge_client = support_llm.ScriptedLlm(
+            [
+                {
+                    "verdicts": [{"section": "task_should", "bullet": "a", "met": False}],
+                    "rationale": "",
+                },
+                {
+                    "verdicts": [{"section": "task_should", "bullet": "a", "met": True}],
+                    "rationale": "",
+                },
+            ]
+        )
+
+        result = await downstream.run_pair(
+            case,
+            support_llm.ScriptedLlm([]),
+            judge_client,
+            agent,
+            sandbox_root=tmp_path / "sandbox",
+        )
+
+        assert agent.prompts == ["add logging", "# Task\nAdd logging\n"]
+        assert (tmp_path / "sandbox" / "c" / "raw" / "CHANGES.md").exists()
+        assert (tmp_path / "sandbox" / "c" / "compiled" / "app.py").exists()
+        assert (result.raw_score, result.compiled_score) == (0.0, 1.0)
+        assert "b/CHANGES.md" in result.compiled_diff
+
+    def test_render_reports_leads_not_only_means(self) -> None:
+        """
+        Test the summary counts cases compiled leads on, which is the number
+        that survives a corpus change.
+        """
+        pairs = [
+            downstream.PairResult(
+                case_id="a",
+                stratum="feature",
+                raw_score=0.2,
+                compiled_score=0.8,
+                assumptions_made_explicit=3,
+                raw_diff="",
+                compiled_diff="",
+            ),
+            downstream.PairResult(
+                case_id="b",
+                stratum="feature",
+                raw_score=0.5,
+                compiled_score=0.5,
+                assumptions_made_explicit=1,
+                raw_diff="",
+                compiled_diff="",
+            ),
+        ]
+        text = downstream.render(pairs)
+        assert "compiled leads 1, trails 0, ties 1" in text

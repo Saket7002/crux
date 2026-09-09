@@ -39,7 +39,10 @@ class Verdict(pydantic.BaseModel):
 
     model_config = pydantic.ConfigDict(frozen=True)
 
-    section: harness.RubricSection
+    section: str
+    """Which rubric section the bullet came from. Free text on purpose: models
+    restate the label ("Task should", "1.", "constraints") and the score never
+    reads it, so a strict literal here failed whole judgements for nothing."""
     bullet: str
     met: bool
     evidence: str = ""
@@ -145,8 +148,28 @@ async def judge(
     :return: The judgement.
     :raises ReasonerParseError: When the model answered in prose or off-schema.
     """
+    return await judge_text(compiled.render(), rubric, client, model=model)
+
+
+async def judge_text(
+    rendered: str,
+    rubric: harness.Rubric,
+    client: pllm.LlmClient,
+    *,
+    model: str | None = None,
+) -> Judgement:
+    """
+    Judge any text against a rubric: a compiled prompt, or a downstream diff.
+
+    :param rendered: What is being judged.
+    :param rubric: What it should say.
+    :param client: Where completions come from.
+    :param model: Which model judges.
+    :return: The judgement.
+    :raises ReasonerParseError: When the model answered in prose or off-schema.
+    """
     turn = await client.complete(
-        build_messages(compiled.render(), rubric),
+        build_messages(rendered, rubric),
         tools=(judge_tool(),),
         force_tool=JUDGE_TOOL,
         model=model,

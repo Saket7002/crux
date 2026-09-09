@@ -248,6 +248,8 @@ uv run python -m tests.evals.optimise --budget 300    # evolve the expand instru
 
 uv run python -m tests.evals.platform --model claude-sonnet-5 --record   # a second model, own cassette
 uv run python -m tests.evals.models                                     # one table across models
+
+uv run python -m tests.evals.downstream --agent-command 'claude -p "$(cat {prompt})"' --record
 ```
 
 **Recall evals** score whether crux surfaced the decisions a person said mattered
@@ -281,6 +283,13 @@ Two runs are compared **case by case**, not only on the mean: `--baseline` says,
 per score, how many cases the new run leads and trails, and names every case
 that regressed. A prompt that fixes the project briefs and breaks one one-liner
 is flat on the mean and visible here.
+
+**The downstream measurement** is the claim itself: for every case with a
+fixture, a coding agent runs twice in sandbox copies, once on the raw prompt and
+once on the prompt crux compiled headless, and both diffs are judged against a
+rubric built from the case. `tests.evals.downstream` reports both scores per
+case and how many cases compiled leads on. A scripted agent keeps the harness
+testable; any agent with a command line plugs in.
 
 **Prompt optimisation** follows GEPA (arXiv 2507.19457): `tests.evals.optimise`
 evolves the expansion instruction alone, using recall and quiet as the objective
