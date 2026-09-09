@@ -110,23 +110,23 @@ def absorb(
     refs: dict[str, str] = {}
     for position, proposal in enumerate(result.proposed):
         duplicate = _duplicate_of(proposal.undecided, existing, aliases)
+        if duplicate is None and proposal.ref in graph.nodes:
+            # A ref is the model's own name for a proposal. When that name is
+            # an existing decision's id, the model is saying "this is that
+            # decision", and it is right far more often than not: the first
+            # recorded corpus run showed later passes proposing "specific X"
+            # refinements of an existing decision under its id, with too little
+            # word overlap for the matcher to see. Believing the ref also
+            # closes the hole where such a ref captured every edge meant for
+            # the existing decision and rewired it to the new proposal.
+            duplicate = proposal.ref
         if duplicate is not None:
             _LOG.info("Dropping proposal %r: duplicates %r", proposal.undecided, duplicate)
             continue
         decision_id = cids.freeform_id(proposal.undecided, pass_index=pass_index)
         survivors.append((position, proposal, decision_id))
         existing[decision_id] = proposal.undecided
-        if proposal.ref and proposal.ref in graph.nodes:
-            # A ref is a private label for a sibling in this batch. A model
-            # that reuses a real id as one -- "software.scope.build" was seen
-            # -- would otherwise capture every edge meant for the pack decision
-            # and redirect it to the new proposal, silently.
-            _LOG.warning(
-                "Ignoring sibling ref %r on %r: it names an existing decision",
-                proposal.ref,
-                decision_id,
-            )
-        elif proposal.ref:
+        if proposal.ref:
             refs[proposal.ref] = decision_id
 
     added = 0

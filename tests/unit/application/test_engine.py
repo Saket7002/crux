@@ -697,15 +697,17 @@ class TestSiblingDependencies:
         channel = _find(done.session, "delivery channel")
         assert [e.source_id for e in digest.edges("requires")] == [channel.id]
 
-    async def test_a_ref_that_names_a_real_decision_cannot_capture_its_edges(self) -> None:
+    async def test_a_ref_that_names_a_real_decision_is_that_decision(self) -> None:
         """
-        Test that a sibling ref equal to an existing id is ignored, so an edge
-        naming that id still points at the pack decision.
+        Test that a proposal whose ref is an existing id merges into that
+        decision, and an edge naming the id still points at the pack decision.
 
-        Seen live: a model labelled a proposal with the ref
-        ``software.scope.build``. Refs are resolved before known ids, so every
-        edge written against the real build-scope decision would have been
-        rewired to the new proposal without a log line.
+        Seen live twice. First a model labelled a proposal with the ref
+        ``software.scope.build`` and, because refs resolve before known ids,
+        every edge against the real decision would have been rewired to it.
+        Then the recorded corpus showed the common case: later passes propose
+        "specific X" refinements of an existing decision under its id, with
+        too little word overlap for the matcher, and each became a new node.
         """
         reasoner = fakes.FakeReasoner(
             expansions=[
@@ -736,7 +738,7 @@ class TestSiblingDependencies:
         assert isinstance(done, csessn.Done)
         restorable = _find(done.session, "stays restorable")
         assert [e.source_id for e in restorable.edges("requires")] == ["software.scope.build"]
-        assert _find(done.session, "soft-deleting").id.startswith("open.p1.")
+        assert not any("soft-deleting" in n.undecided for n in done.session.graph.nodes.values())
 
     async def test_an_unborn_sibling_is_never_asked_about(self) -> None:
         """
