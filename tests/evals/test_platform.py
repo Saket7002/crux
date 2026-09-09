@@ -25,6 +25,7 @@ import tests.evals.judge as judge
 import tests.evals.optimise as optimise
 import tests.evals.platform.adapter as adapter
 import tests.evals.scorers as scorers
+import tests.evals.systems as systems
 import tests.support.llm as support_llm
 
 
@@ -637,3 +638,110 @@ class TestOptimise:
         text = optimise.render("do better", 0.3, 0.5, 120)
         assert "0.30 -> 0.50" in text and "120 rollouts" in text
         assert "Not applied" in text and "do better" in text
+
+
+class TestSystems:
+    """
+    The baselines, scored by the same harness as crux.
+    """
+
+    def test_none_misses_everything_and_asks_nothing(self) -> None:
+        """
+        Test the honest floor: with the raw prompt as the output, every
+        expected decision is missed and nothing the repo answers was asked.
+        """
+        case = harness.EvalCase(
+            id="c",
+            prompt="add caching",
+            must_surface=(harness.Expectation(id="software.scope.build"),),
+            must_not_surface=(harness.Expectation(id="software.deps.policy"),),
+        )
+        score = harness.score_case(case, systems.run_none(case))
+        assert score.recall == 0.0 and score.questions_asked == 0
+        assert scorers.decompose(score, case)["quiet"] == 1.0
+
+    async def test_ask3_questions_are_matched_like_decisions(self) -> None:
+        """
+        Test that a baseline question worded like an expected decision counts
+        as surfaced, and that the three questions count against the budget.
+        """
+        client = support_llm.ScriptedLlm(
+            [
+                {
+                    "questions": [
+                        {"text": "which endpoints the limit applies to"},
+                        {"text": "how callers are identified for counting"},
+                        {"text": "what colour the dashboard should be"},
+                    ]
+                }
+            ]
+        )
+        case = harness.EvalCase(
+            id="c",
+            prompt="add rate limiting",
+            max_questions=3,
+            must_surface=(
+                harness.Expectation(match="which endpoints the limit applies to"),
+                harness.Expectation(match="how long entries live before expiring"),
+            ),
+        )
+        session = await systems.run_ask3(case, client)
+        score = harness.score_case(case, session)
+        assert score.recall == 0.5
+        assert score.questions_asked == 3 and not score.over_question_budget
+        assert score.llm_calls == 1
+        assert client.forced == [systems.ASK_TOOL.name]
+
+    async def test_ask3_prose_is_a_parse_error(self) -> None:
+        """
+        Test that a baseline that ignores its tool fails the case rather than
+        scoring as if it asked nothing.
+        """
+        client = support_llm.ScriptedLlm(["Sure, here are some questions."])
+        with pytest.raises(cerrors.ReasonerParseError):
+            await systems.run_ask3(harness.EvalCase(id="c", prompt="p"), client)
+
+    async def test_flat_strips_every_edge_but_keeps_the_proposals(self) -> None:
+        """
+        Test the B arm: the same proposals reach the graph, none of their
+        edges do, and every other operation passes straight through.
+        """
+        import crux.ports.reasoner as preason
+        import tests.support.reasoner as fakes
+
+        inner = fakes.FakeReasoner(
+            expansions=[
+                preason.ExpansionResult(
+                    proposed=(
+                        fakes.proposal("which delivery channel", ref="channel"),
+                        fakes.proposal(
+                            "digest cadence",
+                            edges=(
+                                preason.ProposedEdge(
+                                    kind="requires", source_id="channel", when_value="email"
+                                ),
+                            ),
+                        ),
+                    )
+                )
+            ]
+        )
+        stripped = systems.EdgeStripper(inner)
+        result = await stripped.expand(preason.ExpansionRequest(prompt="p", lens="l"))
+        assert [p.undecided for p in result.proposed] == [
+            "which delivery channel",
+            "digest cadence",
+        ]
+        assert all(p.edges == () for p in result.proposed)
+        assert stripped.adjudicate.__func__ is inner.adjudicate.__func__  # type: ignore[attr-defined]
+
+    async def test_run_system_rejects_an_unknown_name(self) -> None:
+        """
+        Test that a typo in --system fails loudly rather than silently scoring crux.
+        """
+        with pytest.raises(cerrors.ConfigurationError):
+            await systems.run_system(
+                "typo",  # type: ignore[arg-type]
+                harness.EvalCase(id="c", prompt="p"),
+                support_llm.ScriptedLlm([]),
+            )

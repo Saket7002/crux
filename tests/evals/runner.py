@@ -9,7 +9,7 @@ subtly different things.
 from __future__ import annotations
 
 import pathlib
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 import crux.adapters.llm.litellm as xlitell
 import crux.adapters.llm.reasoner as xreason
@@ -20,7 +20,11 @@ import crux.domain.session as csessn
 import crux.errors as cerrors
 import crux.infra.settings as isettn
 import crux.ports.llm as pllm
+import crux.ports.reasoner as preason
 import tests.evals.harness as harness
+
+ReasonerWrap = Callable[[preason.Reasoner], preason.Reasoner]
+"""Decorates the reasoner before the engine sees it; the flat baseline uses it."""
 
 
 def build_client(
@@ -104,6 +108,7 @@ def build_engine(
     *,
     budget: csessn.Budget | None = None,
     expand_instruction: str | None = None,
+    wrap: ReasonerWrap | None = None,
 ) -> aengine.Crux:
     """
     Wire crux up for one case, the same way every eval path does.
@@ -112,10 +117,13 @@ def build_engine(
     :param client: Where completions come from.
     :param budget: Caps to run under.
     :param expand_instruction: A candidate expansion instruction under test.
+    :param wrap: Decorates the reasoner, for a baseline that alters what the
+        model said before the engine sees it.
     :return: The engine.
     """
+    reasoner: preason.Reasoner = xreason.LlmReasoner(client, expand_instruction=expand_instruction)
     return aengine.Crux(
-        reasoner=xreason.LlmReasoner(client, expand_instruction=expand_instruction),
+        reasoner=wrap(reasoner) if wrap else reasoner,
         retriever=xfsretr.FilesystemRetriever(case.root) if case.root else None,
         budget=budget or csessn.Budget(max_questions_total=case.max_questions),
     )
@@ -128,6 +136,7 @@ async def run_case(
     budget: csessn.Budget | None = None,
     answer: bool = False,
     expand_instruction: str | None = None,
+    wrap: ReasonerWrap | None = None,
 ) -> csessn.Session:
     """
     Run one case to completion.
@@ -141,9 +150,12 @@ async def run_case(
         saturation experiment must answer, because unanswered decisions never
         resolve to a value and so no edge can ever fire.
     :param expand_instruction: A candidate expansion instruction under test.
+    :param wrap: Decorates the reasoner before the engine sees it.
     :return: The finished session.
     """
-    crux = build_engine(case, client, budget=budget, expand_instruction=expand_instruction)
+    crux = build_engine(
+        case, client, budget=budget, expand_instruction=expand_instruction, wrap=wrap
+    )
     step = await crux.start(
         case.prompt,
         context=csessn.SessionContext(root=case.root) if case.root else None,
@@ -160,6 +172,7 @@ async def finish_case(
     step: csessn.Step,
     *,
     budget: csessn.Budget | None = None,
+    wrap: ReasonerWrap | None = None,
 ) -> csessn.Session:
     """
     Answer every remaining question with the scripted respondent.
@@ -172,9 +185,10 @@ async def finish_case(
     :param client: Where completions come from.
     :param step: Where the session got to.
     :param budget: Caps to run under.
+    :param wrap: Decorates the reasoner before the engine sees it.
     :return: The finished session, with an outcome.
     """
-    crux = build_engine(case, client, budget=budget)
+    crux = build_engine(case, client, budget=budget, wrap=wrap)
     respondent = FirstOptionRespondent()
     while isinstance(step, csessn.NeedsInput):
         step = await crux.resume(step.session, respondent.answer(step.questions))

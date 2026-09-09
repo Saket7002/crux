@@ -5,6 +5,11 @@ Upload one eval run to a platform, or print it.
     uv run python -m tests.evals.platform --backend braintrust --project crux
     uv run python -m tests.evals.platform --backend opik --record
 
+``--system`` scores a baseline instead of crux: ``none`` (raw prompt), ``ask3``
+(one call, three questions, nothing else) or ``flat`` (crux with every edge
+stripped). Baselines write their own results file, named after the system, so
+``--baseline`` compares them to crux case by case.
+
 Every run also writes its per-case scores to ``results/<experiment>.json``, and
 ``--baseline`` compares against an earlier file case by case: which run leads
 on how many cases, and which cases regressed. The mean hides both.
@@ -22,12 +27,15 @@ import argparse
 import asyncio
 import pathlib
 
+import crux.domain.session as csessn
 import crux.errors as cerrors
 import crux.infra.settings as isettn
+import crux.ports.llm as pllm
 import tests.evals.compare as compare
 import tests.evals.harness as harness
 import tests.evals.platform.adapter as adapter
 import tests.evals.runner as runner
+import tests.evals.systems as systems
 
 CASSETTE = "recall"
 JUDGE_CASSETTE = "judge"
@@ -82,15 +90,25 @@ async def _main(args: argparse.Namespace) -> int:
         judge_model=None if args.no_judge else args.judge_model,
         corpus_size=len(cases),
     )
-    backend = build_backend(args.backend, project=args.project, experiment=args.experiment)
+    experiment = args.experiment or (args.backend if args.system == "crux" else args.system)
+    backend = build_backend(args.backend, project=args.project, experiment=experiment)
+
+    async def run_case(case: harness.EvalCase, llm: pllm.LlmClient) -> csessn.Session:
+        return await systems.run_system(args.system, case, llm)
+
     results = await adapter.run_experiment(
-        cases, backend, client, judge_client, meta, judge_model=args.judge_model
+        cases,
+        backend,
+        client,
+        judge_client,
+        meta,
+        run_case=run_case,
+        judge_model=args.judge_model,
     )
     print(f"\ncassette hits {client.hits}, misses {client.misses}")
     if any("Cassette miss" in r.error for r in results):
         print("some cases hit a cassette miss; rerun with --record to capture them")
 
-    experiment = args.experiment or args.backend
     run = adapter.to_results(results, meta, experiment=experiment)
     out = pathlib.Path(args.out) if args.out else compare.RESULTS / f"{experiment}.json"
     compare.save(run, out)
@@ -107,6 +125,12 @@ def main() -> int:
     """
     parser = argparse.ArgumentParser(prog="tests.evals.platform", description=__doc__)
     parser.add_argument("--backend", choices=("stdout", "braintrust", "opik"), default="stdout")
+    parser.add_argument(
+        "--system",
+        choices=systems.SYSTEMS,
+        default="crux",
+        help="what to score: crux, or a baseline (flat, ask3, none)",
+    )
     parser.add_argument("--record", action="store_true", help="call the real model")
     parser.add_argument("--only", nargs="*", help="case ids to run")
     parser.add_argument("--project", default="crux", help="platform project name")

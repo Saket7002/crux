@@ -351,6 +351,20 @@ async def _run_one(
     )
 
 
+def finish_with_scripted_respondent(
+    case: harness.EvalCase, client: pllm.LlmClient, session: csessn.Session
+) -> Awaitable[coutput.CompiledPrompt | None]:
+    """
+    The default way to carry a scored session to a compiled prompt.
+
+    :param case: The case.
+    :param client: Where completions come from.
+    :param session: The session as scored.
+    :return: The compiled prompt, or ``None`` when there is nothing to finish.
+    """
+    return _default_finish_case(case, client, session)
+
+
 class PrintBackend:
     """
     The built-in backend: renders the report and per-case scores to stdout.
