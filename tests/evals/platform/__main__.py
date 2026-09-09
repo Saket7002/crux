@@ -14,7 +14,11 @@ Every run also writes its per-case scores to ``results/<experiment>.json``, and
 ``--baseline`` compares against an earlier file case by case: which run leads
 on how many cases, and which cases regressed. The mean hides both.
 
-Replays from ``cassettes/recall.json`` and ``cassettes/judge.json`` unless
+``--model`` picks the model. Cassettes and results files are named per model
+(``recall-<model>.json``, ``results/<system>-<model>.json``), so recordings
+never collide and ``python -m tests.evals.models`` can compare them.
+
+Replays from the model's recall and judge cassettes unless
 ``--record`` is given. The run shares the recall cassette on purpose: the
 scores uploaded are then byte-for-byte the ones the ratchet asserts on, and one
 recording serves both. A separate command rather than a pytest option so the
@@ -77,7 +81,7 @@ async def _main(args: argparse.Namespace) -> int:
     # Provider keys live in .env under the provider's own name, which litellm
     # reads from the process environment, not from settings.
     isettn.load_dotenv()
-    settings = isettn.CruxSettings()
+    settings = isettn.CruxSettings(model=args.model) if args.model else isettn.CruxSettings()
     client = runner.build_client(CASSETTE, record=args.record, settings=settings)
     judge_client = (
         None
@@ -90,7 +94,8 @@ async def _main(args: argparse.Namespace) -> int:
         judge_model=None if args.no_judge else args.judge_model,
         corpus_size=len(cases),
     )
-    experiment = args.experiment or (args.backend if args.system == "crux" else args.system)
+    name = args.backend if args.system == "crux" else args.system
+    experiment = args.experiment or f"{name}-{runner.model_slug(settings.model)}"
     backend = build_backend(args.backend, project=args.project, experiment=experiment)
 
     async def run_case(case: harness.EvalCase, llm: pllm.LlmClient) -> csessn.Session:
@@ -131,6 +136,7 @@ def main() -> int:
         default="crux",
         help="what to score: crux, or a baseline (flat, ask3, none)",
     )
+    parser.add_argument("--model", default=None, help="model to run, overriding CRUX_MODEL")
     parser.add_argument("--record", action="store_true", help="call the real model")
     parser.add_argument("--only", nargs="*", help="case ids to run")
     parser.add_argument("--project", default="crux", help="platform project name")

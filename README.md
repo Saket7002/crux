@@ -245,6 +245,9 @@ uv run python -m tests.evals.platform --backend opik --record     # re-record, t
 uv run python -m tests.evals.platform --baseline tests/evals/results/base.json   # case-by-case diff
 
 uv run python -m tests.evals.optimise --budget 300    # evolve the expand instruction (real model)
+
+uv run python -m tests.evals.platform --model claude-sonnet-5 --record   # a second model, own cassette
+uv run python -m tests.evals.models                                     # one table across models
 ```
 
 **Recall evals** score whether crux surfaced the decisions a person said mattered

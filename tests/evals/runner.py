@@ -15,6 +15,7 @@ import crux.adapters.llm.litellm as xlitell
 import crux.adapters.llm.reasoner as xreason
 import crux.adapters.retrieval.fs as xfsretr
 import crux.application.engine as aengine
+import crux.domain.ids as cids
 import crux.domain.replies as creply
 import crux.domain.session as csessn
 import crux.errors as cerrors
@@ -28,7 +29,7 @@ ReasonerWrap = Callable[[preason.Reasoner], preason.Reasoner]
 
 
 def build_client(
-    cassette_name: str,
+    purpose: str,
     *,
     record: bool,
     settings: isettn.CruxSettings | None = None,
@@ -36,14 +37,34 @@ def build_client(
     """
     Build a cassette-backed client.
 
-    :param cassette_name: Which cassette to use.
+    :param purpose: What the cassette is for: ``recall``, ``judge``,
+        ``saturation``. The model name joins it, so two models never share a
+        cassette and a recording under one model cannot answer for another.
     :param record: Whether real calls are allowed for unseen requests.
     :param settings: Model configuration.
     :return: The client.
     """
     resolved = require_single_model(settings or isettn.CruxSettings())
     inner: pllm.LlmClient | None = xlitell.LiteLlmClient(resolved) if record else None
-    return harness.CassetteLlm(inner, harness.CASSETTES / f"{cassette_name}.json", record=record)
+    path = harness.CASSETTES / f"{cassette_name(purpose, resolved.model)}.json"
+    return harness.CassetteLlm(inner, path, record=record)
+
+
+def cassette_name(purpose: str, model: str) -> str:
+    """
+    :param purpose: What the cassette is for.
+    :param model: The model it was recorded under.
+    :return: The file stem, one per purpose and model.
+    """
+    return f"{purpose}-{model_slug(model)}"
+
+
+def model_slug(model: str) -> str:
+    """
+    :param model: A litellm model name such as ``cohere_chat/command-a-03-2025``.
+    :return: Something safe in a file name.
+    """
+    return cids.slug(model, max_length=64)
 
 
 def require_single_model(settings: isettn.CruxSettings) -> isettn.CruxSettings:

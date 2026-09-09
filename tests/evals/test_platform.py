@@ -22,8 +22,10 @@ import crux.ports.llm as pllm
 import tests.evals.compare as compare
 import tests.evals.harness as harness
 import tests.evals.judge as judge
+import tests.evals.models as models
 import tests.evals.optimise as optimise
 import tests.evals.platform.adapter as adapter
+import tests.evals.runner as runner
 import tests.evals.scorers as scorers
 import tests.evals.systems as systems
 import tests.support.llm as support_llm
@@ -754,3 +756,34 @@ class TestSystems:
                 harness.EvalCase(author="test", id="c", prompt="p"),
                 support_llm.ScriptedLlm([]),
             )
+
+
+class TestPerModel:
+    """
+    Recordings and results that never collide across models.
+    """
+
+    def test_cassette_name_carries_the_model(self) -> None:
+        """
+        Test that two models get two cassettes, and the name is safe on disk.
+        """
+        name = runner.cassette_name("recall", "cohere_chat/command-a-03-2025")
+        assert name == "recall-cohere-chat-command-a-03-2025"
+        assert "/" not in name
+        assert runner.cassette_name("recall", "claude-sonnet-5") != name
+
+    def test_the_models_table_ranks_and_counts_leads(self) -> None:
+        """
+        Test that the summary orders models by recall, shows ask rate per
+        stratum, and counts case-level leads over the weakest model rather
+        than only reporting means.
+        """
+        strong = _run("s", {"a": {"recall": 1.0}, "b": {"recall": 0.5}})
+        weak = _run("w", {"a": {"recall": 0.0}, "b": {"recall": 0.5}})
+        strong = strong.model_copy(update={"model": "strong"})
+        weak = weak.model_copy(update={"model": "weak"})
+        text = models.render([weak, strong])
+        lines = text.splitlines()
+        assert lines[2].startswith("strong") and lines[3].startswith("weak")
+        assert "leads over weak" in text
+        assert "recall 1/0/1" in text
