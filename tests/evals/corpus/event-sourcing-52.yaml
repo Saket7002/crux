@@ -1,0 +1,28 @@
+id: event-sourcing-52
+author: claude
+stratum: project
+prompt: >
+  Move the worker to an event-sourced model. We keep losing the history of
+  what happened to a job, and support cannot answer why a job ended up in
+  its state. Existing jobs must keep working through the change.
+fixture_repo: go_worker
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - match: "what the event store is"
+  - match: "how existing state is replayed into events"
+  - match: "how consumers handle a replay"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.deps.policy
+expected:
+  task_should:
+    - "record job history as an append-only event stream in the worker"
+  constraints_should:
+    - "in-flight jobs survive the migration"
+  assumptions_should_cite:
+    - "the event store"
+    - "backfilling existing jobs"
+  must_not_claim:
+    - "that Redis lists are an adequate event store"

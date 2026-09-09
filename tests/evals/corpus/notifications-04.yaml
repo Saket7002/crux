@@ -1,4 +1,5 @@
 id: notifications-04
+author: vedanshu
 stratum: feature
 prompt: >
   Add notifications to the app. Users should find out when something they care

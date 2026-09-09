@@ -1,4 +1,5 @@
 id: bulk-export-17
+author: claude
 stratum: feature
 prompt: >
   Let users export all their items as a file. Big accounts have hundreds of

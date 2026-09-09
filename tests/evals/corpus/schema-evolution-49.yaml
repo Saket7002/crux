@@ -1,0 +1,25 @@
+id: schema-evolution-49
+author: claude
+stratum: feature
+prompt: >
+  Event files started arriving with new fields. Loads must not break, and the
+  new fields should become queryable.
+fixture_repo: data_pipeline
+max_questions: 4
+must_surface:
+  - match: "whether unknown fields are stored or dropped"
+  - match: "how the warehouse schema is updated"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "make the events load tolerate and surface new fields"
+  constraints_should:
+    - "a new field never fails the load"
+  assumptions_should_cite:
+    - "store-or-drop for unknown fields"
+    - "how raw.events gains columns"
+  must_not_claim:
+    - "that the load already handles schema drift"

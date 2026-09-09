@@ -1,4 +1,5 @@
 id: server-components-25
+author: claude
 stratum: project
 prompt: >
   Migrate the dashboard to React server components. First paint is slow and

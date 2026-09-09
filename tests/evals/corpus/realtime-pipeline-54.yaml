@@ -1,0 +1,26 @@
+id: realtime-pipeline-54
+author: claude
+stratum: project
+prompt: >
+  Move from daily batches to near real time. Dashboards should lag by minutes,
+  not a day. Finance still needs the daily numbers to be exact and
+  reproducible, so the daily marts stay.
+fixture_repo: data_pipeline
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - id: software.deps.policy
+  - match: "what acceptable lag is"
+  - match: "how the streaming and daily paths stay consistent"
+must_not_surface:
+  - id: software.tests.expectations
+expected:
+  task_should:
+    - "add a near-real-time path beside the daily batch"
+  constraints_should:
+    - "daily marts remain exact and reproducible"
+  assumptions_should_cite:
+    - "the lag target"
+    - "how the two paths reconcile"
+  must_not_claim:
+    - "that Airflow is suited to streaming"

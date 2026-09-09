@@ -251,7 +251,7 @@ uv run python -m tests.evals.optimise --budget 300    # evolve the expand instru
 and stayed quiet about the ones the repo already answers. Matching is canonical id
 or token overlap, with no LLM judge, because a judge makes the harness itself
 flaky. Assertions are on the aggregate, never per case, and ask rate per prompt
-size has an alarm band. The corpus is thirty cases, ten per prompt size, over four
+size has an alarm band. The corpus is sixty cases, twenty per prompt size, over four
 synthetic fixture repos and a handful of cases with no repo at all.
 
 **Eval platforms** add what the harness deliberately lacks: run history, a diff

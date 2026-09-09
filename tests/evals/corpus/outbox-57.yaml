@@ -1,0 +1,27 @@
+id: outbox-57
+author: claude
+stratum: project
+prompt: >
+  Jobs and database writes get out of sync when one side fails. Make them
+  atomic: a write and the job it triggers either both happen or neither, and
+  a job never runs for a write that rolled back.
+fixture_repo: go_worker
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - match: "whether an outbox table or a transactional queue is used"
+  - match: "how duplicates from redelivery are handled"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "make database writes and job enqueues atomic"
+  constraints_should:
+    - "no job runs for a rolled-back write"
+  assumptions_should_cite:
+    - "outbox versus transactional queue"
+    - "idempotency on redelivery"
+  must_not_claim:
+    - "that Redis participates in database transactions"

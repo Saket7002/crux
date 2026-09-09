@@ -1,0 +1,23 @@
+id: dedupe-events-44
+author: claude
+stratum: feature
+prompt: >
+  Some event files are delivered twice. The daily numbers must not double
+  count.
+fixture_repo: data_pipeline
+max_questions: 4
+must_surface:
+  - match: "what identifies a duplicate event"
+  - match: "whether duplicates are dropped at load or at query time"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "make daily_active_users immune to duplicate event files"
+  assumptions_should_cite:
+    - "the duplicate key"
+    - "load-time versus query-time deduplication"
+  must_not_claim:
+    - "that events carry a unique id"

@@ -1,0 +1,22 @@
+id: partition-34
+author: claude
+stratum: one_liner
+prompt: "partition raw.events by day"
+fixture_repo: data_pipeline
+max_questions: 3
+must_surface:
+  - id: software.compat.breaking
+  - match: "how existing rows are moved into partitions"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "convert raw.events to a day-partitioned table"
+  constraints_should:
+    - "queries and the daily_active_users model keep working"
+  assumptions_should_cite:
+    - "how existing rows are migrated"
+  must_not_claim:
+    - "that the table is already partitioned"

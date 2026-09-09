@@ -71,6 +71,15 @@ class TestCorpus:
             assert bullets, case.id
             assert all(bullet.strip() for _, bullet in bullets), case.id
 
+    def test_every_case_names_its_author(self) -> None:
+        """
+        Test that authorship is recorded, so the threats-to-validity question,
+        whether the prompt was tuned on cases its tuner wrote, has an answer.
+        """
+        authors = {case.author for case in harness.load_corpus()}
+        assert all(a.strip() for a in authors)
+        assert len(authors) >= 2
+
     def test_some_cases_run_without_a_fixture(self) -> None:
         """
         Test that headless-without-retrieval is measured. Every host does not
@@ -116,6 +125,7 @@ class TestScoring:
         Test the core arithmetic: one of two expectations found is 0.5.
         """
         case = harness.EvalCase(
+            author="test",
             id="c",
             prompt="p",
             must_surface=(
@@ -145,7 +155,7 @@ class TestScoring:
         Test that asking too much is caught. Ask rate is the product metric, and
         a case quietly exceeding its budget is the regression that matters most.
         """
-        case = harness.EvalCase(id="c", prompt="p", max_questions=2)
+        case = harness.EvalCase(author="test", id="c", prompt="p", max_questions=2)
         session = csessn.Session(id="s", prompt="p", budget=csessn.Budget(spent_questions=3))
 
         assert harness.score_case(case, session).over_question_budget

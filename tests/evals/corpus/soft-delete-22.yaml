@@ -1,4 +1,5 @@
 id: soft-delete-22
+author: claude
 stratum: feature
 prompt: >
   Items should be soft-deleted so support can restore them. The existing API

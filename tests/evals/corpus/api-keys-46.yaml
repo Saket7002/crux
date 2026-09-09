@@ -1,0 +1,26 @@
+id: api-keys-46
+author: claude
+stratum: feature
+prompt: >
+  Let users create API keys for scripts instead of using their session token.
+  Keys must be revocable at any time.
+fixture_repo: fastapi_service
+max_questions: 4
+must_surface:
+  - match: "how keys are stored"
+  - match: "what an API key is allowed to do compared to a session"
+must_not_surface:
+  - id: software.tests.expectations
+  - match: "whether keys can be revoked"
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "add revocable API keys alongside bearer-token sessions"
+  constraints_should:
+    - "revocation takes effect immediately"
+  assumptions_should_cite:
+    - "key storage and hashing"
+    - "key scope relative to a session"
+  must_not_claim:
+    - "that revocation is optional"

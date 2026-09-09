@@ -1,0 +1,20 @@
+id: delete-user-35
+author: claude
+stratum: one_liner
+prompt: "delete a user and all their data"
+fixture_repo: null
+max_questions: 3
+must_surface:
+  - id: software.scope.build
+  - match: "whether deletion is immediate or delayed"
+  - match: "what happens to data shared with other users"
+must_not_surface:
+  - id: software.tests.expectations
+expected:
+  task_should:
+    - "remove a user and the data they own"
+  assumptions_should_cite:
+    - "immediate versus delayed deletion"
+    - "how shared data is treated"
+  must_not_claim:
+    - "any fact about the codebase, because no repository was available"

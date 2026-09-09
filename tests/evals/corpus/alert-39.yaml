@@ -1,0 +1,20 @@
+id: alert-39
+author: claude
+stratum: one_liner
+prompt: "alert when the daily load fails"
+fixture_repo: data_pipeline
+max_questions: 3
+must_surface:
+  - match: "where the alert is sent"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "notify someone when the events_daily DAG fails"
+  assumptions_should_cite:
+    - "the alert channel"
+    - "whether a retry counts as a failure"
+  must_not_claim:
+    - "that alerting is already configured in Airflow"

@@ -65,7 +65,7 @@ class TestScorers:
         Test that a platform always sees the same five names, so an experiment
         diff compares like with like even when a case expects nothing.
         """
-        case = harness.EvalCase(id="c", prompt="p")
+        case = harness.EvalCase(author="test", id="c", prompt="p")
         scores = scorers.decompose(_score(), case)
         assert set(scores) == {"recall", "quiet", "retrieval", "within_budget", "clean"}
         assert all(0.0 <= v <= 1.0 for v in scores.values())
@@ -75,7 +75,7 @@ class TestScorers:
         Test that a case with no must_not_surface cannot have been noisy. A NaN
         here would poison the experiment mean.
         """
-        case = harness.EvalCase(id="c", prompt="p")
+        case = harness.EvalCase(author="test", id="c", prompt="p")
         assert scorers.decompose(_score(), case)["quiet"] == 1.0
 
     def test_quiet_is_the_fraction_of_expectations_kept(self) -> None:
@@ -84,6 +84,7 @@ class TestScorers:
         which is what the ratchet's precision-miss count means per case.
         """
         case = harness.EvalCase(
+            author="test",
             id="c",
             prompt="p",
             must_not_surface=(harness.Expectation(id="a"), harness.Expectation(id="b")),
@@ -116,7 +117,7 @@ class TestFeedback:
         breach and a failed rubric bullet each become exactly one line a
         reflection model can act on, and nothing else is said.
         """
-        case = harness.EvalCase(id="c", prompt="p", max_questions=2)
+        case = harness.EvalCase(author="test", id="c", prompt="p", max_questions=2)
         score = _score(
             missed=("~what gets cached",),
             should_have_been_quiet=("software.deps.policy",),
@@ -144,7 +145,7 @@ class TestFeedback:
         Test that silence is never the feedback: an empty string would read as
         a missing field on a dashboard.
         """
-        assert scorers.feedback(_score(), harness.EvalCase(id="c", prompt="p")) == (
+        assert scorers.feedback(_score(), harness.EvalCase(author="test", id="c", prompt="p")) == (
             "every expectation met"
         )
 
@@ -324,7 +325,10 @@ class TestRunExperiment:
         Test the contract a backend can rely on: dataset before experiment,
         every result before finish, and the item ids it returned handed back.
         """
-        cases = (harness.EvalCase(id="a", prompt="p"), harness.EvalCase(id="b", prompt="q"))
+        cases = (
+            harness.EvalCase(author="test", id="a", prompt="p"),
+            harness.EvalCase(author="test", id="b", prompt="q"),
+        )
         backend = await self._run(cases, judge_client=None)
         assert backend.calls == [
             "upsert_dataset",
@@ -341,11 +345,11 @@ class TestRunExperiment:
         Test that absence is absence: no rubric means no judge score, rather
         than a silent 1.0 that reads as a pass on a dashboard.
         """
-        plain = harness.EvalCase(id="a", prompt="p")
+        plain = harness.EvalCase(author="test", id="a", prompt="p")
         backend = await self._run((plain,), judge_client=support_llm.ScriptedLlm([]))
         assert "judge" not in backend.results[0].scores
 
-        with_rubric = harness.EvalCase(id="b", prompt="p", expected=_rubric())
+        with_rubric = harness.EvalCase(author="test", id="b", prompt="p", expected=_rubric())
         backend = await self._run((with_rubric,), judge_client=None)
         assert "judge" not in backend.results[0].scores
 
@@ -354,7 +358,7 @@ class TestRunExperiment:
         Test that a judged case carries its score, its rationale, and the
         traced calls crux made, which is everything a backend logs.
         """
-        case = harness.EvalCase(id="a", prompt="p", expected=_rubric())
+        case = harness.EvalCase(author="test", id="a", prompt="p", expected=_rubric())
         judge_client = support_llm.ScriptedLlm(
             [
                 {
@@ -394,7 +398,10 @@ class TestOneFailureDoesNotCostTheRun:
         ) -> coutput.CompiledPrompt | None:
             return None
 
-        cases = (harness.EvalCase(id="bad", prompt="p"), harness.EvalCase(id="good", prompt="p"))
+        cases = (
+            harness.EvalCase(author="test", id="bad", prompt="p"),
+            harness.EvalCase(author="test", id="good", prompt="p"),
+        )
         await adapter.run_experiment(
             cases,
             backend,
@@ -451,7 +458,7 @@ class TestPrintBackend:
         Test that a replay run can be eyeballed before anything is uploaded.
         """
         backend = adapter.PrintBackend()
-        case = harness.EvalCase(id="a", prompt="p")
+        case = harness.EvalCase(author="test", id="a", prompt="p")
         backend.upsert_dataset((case,))
         backend.start_experiment(_meta(), {"a": "a"})
         backend.log_result(
@@ -596,9 +603,9 @@ class TestOptimise:
 
         adapter_ = optimise.ExpandAdapter(support_llm.ScriptedLlm([]), run_case=run_case)
         good = harness.EvalCase(
-            id="good", prompt="p", must_surface=(harness.Expectation(id="nowhere"),)
+            author="test", id="good", prompt="p", must_surface=(harness.Expectation(id="nowhere"),)
         )
-        bad = harness.EvalCase(id="bad", prompt="p")
+        bad = harness.EvalCase(author="test", id="bad", prompt="p")
         good_t = await adapter_._rollout(good, "x")
         bad_t = await adapter_._rollout(bad, "x")
         assert good_t["score"] == 0.5
@@ -651,6 +658,7 @@ class TestSystems:
         expected decision is missed and nothing the repo answers was asked.
         """
         case = harness.EvalCase(
+            author="test",
             id="c",
             prompt="add caching",
             must_surface=(harness.Expectation(id="software.scope.build"),),
@@ -677,6 +685,7 @@ class TestSystems:
             ]
         )
         case = harness.EvalCase(
+            author="test",
             id="c",
             prompt="add rate limiting",
             max_questions=3,
@@ -699,7 +708,7 @@ class TestSystems:
         """
         client = support_llm.ScriptedLlm(["Sure, here are some questions."])
         with pytest.raises(cerrors.ReasonerParseError):
-            await systems.run_ask3(harness.EvalCase(id="c", prompt="p"), client)
+            await systems.run_ask3(harness.EvalCase(author="test", id="c", prompt="p"), client)
 
     async def test_flat_strips_every_edge_but_keeps_the_proposals(self) -> None:
         """
@@ -742,6 +751,6 @@ class TestSystems:
         with pytest.raises(cerrors.ConfigurationError):
             await systems.run_system(
                 "typo",  # type: ignore[arg-type]
-                harness.EvalCase(id="c", prompt="p"),
+                harness.EvalCase(author="test", id="c", prompt="p"),
                 support_llm.ScriptedLlm([]),
             )

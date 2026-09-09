@@ -1,0 +1,26 @@
+id: priority-47
+author: claude
+stratum: feature
+prompt: >
+  Some customers pay for priority. Their jobs should run first, but nobody
+  should starve.
+fixture_repo: go_worker
+max_questions: 4
+must_surface:
+  - id: software.scope.build
+  - match: "how many priority levels exist"
+  - match: "how starvation of low priority jobs is prevented"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "add priority scheduling to the worker"
+  constraints_should:
+    - "low-priority jobs still complete"
+  assumptions_should_cite:
+    - "the number of priority levels"
+    - "the anti-starvation rule"
+  must_not_claim:
+    - "that Redis lists already support priorities"

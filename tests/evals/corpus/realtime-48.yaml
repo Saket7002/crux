@@ -1,0 +1,23 @@
+id: realtime-48
+author: claude
+stratum: feature
+prompt: >
+  Show job status updates live instead of on refresh.
+fixture_repo: next_dashboard
+max_questions: 4
+must_surface:
+  - id: software.deps.policy
+  - match: "whether updates use polling or a push connection"
+  - match: "how often the status refreshes"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "update job status in the dashboard without a manual refresh"
+  assumptions_should_cite:
+    - "polling versus push"
+    - "the refresh interval"
+  must_not_claim:
+    - "that the API already exposes a stream"

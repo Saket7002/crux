@@ -1,0 +1,29 @@
+id: design-system-53
+author: claude
+stratum: project
+prompt: >
+  Build a design system for the dashboard. Every team builds its own buttons
+  and forms and the product looks like five products. One component library,
+  accessible by default, and it has to support the dark mode we already
+  shipped.
+fixture_repo: next_dashboard
+max_questions: 6
+must_surface:
+  - id: software.scope.build
+  - match: "which components ship first"
+  - match: "how existing pages adopt the library"
+  - match: "how accessibility is verified"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.deps.policy
+expected:
+  task_should:
+    - "create a shared, accessible component library for the dashboard"
+  constraints_should:
+    - "dark mode is supported"
+  assumptions_should_cite:
+    - "the first components"
+    - "the migration path for existing pages"
+  must_not_claim:
+    - "that a component library already exists"

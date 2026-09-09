@@ -127,6 +127,10 @@ class EvalCase(pydantic.BaseModel):
 
     id: str
     prompt: str
+    author: str
+    """Who wrote the expectations and the rubric. Recorded so a prompt is never
+    tuned against cases written by the person tuning it without that being
+    visible."""
     stratum: Stratum = "feature"
     fixture_repo: str | None = None
     must_surface: tuple[Expectation, ...] = ()

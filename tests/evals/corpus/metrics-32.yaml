@@ -1,0 +1,21 @@
+id: metrics-32
+author: claude
+stratum: one_liner
+prompt: "expose Prometheus metrics from the worker"
+fixture_repo: go_worker
+max_questions: 3
+must_surface:
+  - id: software.deps.policy
+  - match: "which metrics are exposed"
+must_not_surface:
+  - id: software.tests.expectations
+must_resolve_by_retrieval:
+  - id: software.target.files
+expected:
+  task_should:
+    - "add a Prometheus metrics endpoint to the Go worker"
+  assumptions_should_cite:
+    - "the set of metrics"
+    - "whether adding the Prometheus client library is acceptable"
+  must_not_claim:
+    - "that the worker already serves HTTP"

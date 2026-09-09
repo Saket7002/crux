@@ -1,4 +1,5 @@
 id: audit-log-29
+author: claude
 stratum: project
 prompt: >
   Add audit logging across the API and the worker. Compliance wants to know
